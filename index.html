@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inversion // Absolute Chromatic V28</title>
+    <title>Inversion // Portable Absolute V30</title>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
@@ -18,7 +18,6 @@
             height: 100vh; display: flex; flex-direction: column; overflow: hidden; 
         }
 
-        /* High-Contrast Unified Grid Overlay */
         .grid-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: 
@@ -44,12 +43,12 @@
             box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.3);
             text-shadow: 0 0 10px var(--neon-b);
         }
-
+        
         .view { display: none; flex: 1; flex-direction: column; padding: 10px; padding-bottom: 70px; box-sizing: border-box; width: 100%; height: 100%; z-index: 10; }
         .view.active { display: flex; }
-
+        
         canvas { background: #000; border: 1px solid #333; display: block; margin: auto; position: relative; }
-
+        
         .hud { 
             display: flex; justify-content: space-between; font-size: 9px; 
             color: var(--neon-p); padding: 5px; width: 100%; 
@@ -57,7 +56,7 @@
         }
 
         #log { font-size: 10px; color: var(--neon-b); white-space: pre-wrap; flex: 1; padding: 10px; background: #080808; overflow-y: scroll; border: 1px solid #111; }
-
+        
         .museum-layout { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .museum-scroll { flex: 1; overflow-y: auto; padding-right: 5px; }
         .artifact-card { 
@@ -66,14 +65,14 @@
             justify-content: space-between; align-items: center; cursor: pointer;
         }
         .artifact-card.selected { border-color: var(--gold); background: #1a1a1a; }
-
+        
         .reconstruction-pane { display: flex; gap: 10px; height: 140px; margin-top: 5px; }
         .recon-box { flex: 1; display: flex; flex-direction: column; }
         .recon-label { font-size: 8px; color: #666; text-align: center; margin-bottom: 2px; }
 
         .highlight { color: #ff0055; font-weight: bold; }
         .sim-count-box { color: var(--neon-b); font-weight: bold; border: 1px solid var(--neon-b); padding: 2px 5px; }
-
+        
         .bmc-btn { 
             position: fixed; top: 10px; right: 10px; background: #ffdd00; 
             color: #000; padding: 5px 10px; font-size: 10px; font-weight: bold; 
@@ -88,7 +87,7 @@
 
     <div id="v-sim" class="view active">
         <div class="hud">
-            <span>CHROMATIC_EYES_V28</span>
+            <span>PORTABLE_ABSOLUTE_V30</span>
             <span class="sim-count-box">SIM_TOTAL: <span id="sim-count">0</span></span>
         </div>
         <canvas id="c-phys"></canvas>
@@ -135,15 +134,21 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL CONSTANTS ---
+        // --- SAFE INITIALIZATION ---
         const COLORS = { G: '#0f0', P: '#f0f', B: '#0ff', Y: '#ff0', W: '#fff', R: '#f03', GOLD: '#ffd700' };
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-v28-absolute';
+        
+        let firebaseConfig = {};
+        try {
+            // Attempt to load from environment or use a dummy config for offline stability
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "none", authDomain: "none", projectId: "none" };
+        } catch (e) { console.warn("Firebase config not found, running in local-only mode."); }
+
+        const app = firebaseConfig.apiKey !== "none" ? initializeApp(firebaseConfig) : null;
+        const auth = app ? getAuth(app) : null;
+        const db = app ? getFirestore(app) : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-hologram-main';
 
         let user = null, globalMuseum = [], globalZeta = [], canvasSize = 500, selectedArtifact = null;
         let searchCount = 0;
@@ -162,48 +167,45 @@
             { id: 6, name: "B_Z", color: '#ffffff', x: 250, y: 250, vx: 5, vy: 19.8873, trail: [], bounces: 0, range: [0.001, 35], boredom: 0 }
         ];
 
-        // Zeta Taskforce using Agent Smith/Blade colors
         const zetaAgents = team7.map((b, i) => ({ 
-            ...b, 
-            t: (i < 4 ? 0.1 + (i * 3.5) : 14.13 + (i * 15)), // Smiths Alpha-Delta hardcoded to low regime
-            mag: 1, locked: false, confirmations: 0 
+            ...b, t: (i < 4 ? 0.1 + (i * 3.5) : 14.13 + (i * 15)), mag: 1, locked: false, confirmations: 0 
         }));
 
-        // --- AUTH & DATA ---
-        onAuthStateChanged(auth, async (u) => {
-            user = u;
-            if (!user) {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-            } else {
-                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), snap => {
-                    globalMuseum = snap.docs.map(d => d.data());
-                    const el = document.getElementById('sim-count'); if(el) el.innerText = globalMuseum.length;
-                    if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
-                });
-                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), snap => {
-                    globalZeta = snap.docs.map(d => d.data());
-                    const el = document.getElementById('zeta-count'); if(el) el.innerText = globalZeta.length;
-                });
-            }
-        });
+        // --- AUTH & DATA SYNC ---
+        if (auth) {
+            onAuthStateChanged(auth, async (u) => {
+                user = u;
+                if (!user) {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
+                } else {
+                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), snap => {
+                        globalMuseum = snap.docs.map(d => d.data());
+                        const el = document.getElementById('sim-count'); if(el) el.innerText = globalMuseum.length;
+                        if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
+                    });
+                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), snap => {
+                        globalZeta = snap.docs.map(d => d.data());
+                        const el = document.getElementById('zeta-count'); if(el) el.innerText = globalZeta.length;
+                    });
+                }
+            });
+        }
 
-        // --- NOVELTY ENGINE ---
+        // --- LOGIC ---
         function getNovelVy(bot) {
             let candidate; let attempts = 0; const epsilon = 0.00001; 
             while(attempts < 100) {
                 candidate = bot.range[0] + Math.random() * (bot.range[1] - bot.range[0]);
-                if (!globalMuseum.some(m => Math.abs(parseFloat(m.vy) - candidate) < epsilon)) {
-                    searchCount++; updateLog(`NOVEL_SYNC_${searchCount}: Vy=${candidate.toFixed(6)}`);
-                    return candidate;
-                }
+                const isRedundant = globalMuseum.some(m => Math.abs(parseFloat(m.vy) - candidate) < epsilon);
+                if (!isRedundant) { searchCount++; updateLog(`NOVEL_SYNC_${searchCount}: Vy=${candidate.toFixed(6)}`); return candidate; }
                 attempts++;
             }
             return candidate;
         }
 
         async function logArtifact(node) {
-            if (!user) return;
+            if (!user || !db) return;
             const isStructure = node.precision < 0.05;
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), {
@@ -214,16 +216,15 @@
         }
 
         async function logZeta(tValue) {
-            if (!user) return;
+            if (!user || !db) return;
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), {
                     t: tValue, timestamp: Date.now(), userId: user.uid
                 });
-                updateLog(`ZETA_ZERO: Locked at t=${tValue.toFixed(6)}`);
             } catch (e) {}
         }
 
-        // --- UI ---
+        // --- RENDERING ---
         function resizeUI() {
             canvasSize = Math.min(window.innerHeight - 180, window.innerWidth - 40, 500);
             ['c-phys','c-reality','c-hyper','c-zeta','c-brain'].forEach(id => {
@@ -261,8 +262,7 @@
             updateMuseumUI();
         };
 
-        // --- ENGINES ---
-        function runV28() {
+        function runV30() {
             const ctxPhys = document.getElementById('c-phys')?.getContext('2d');
             if(ctxPhys) {
                 ctxPhys.fillStyle = 'rgba(0,0,0,0.2)'; ctxPhys.fillRect(0,0,canvasSize,canvasSize);
@@ -280,35 +280,22 @@
                     bot.x += bot.vx; bot.y += bot.vy;
                     const gx = Math.floor(bot.x / (500/gridRes)), gy = Math.floor(bot.y / (500/gridRes));
                     if(gx>=0 && gx<gridRes && gy>=0 && gy<gridRes) heatmap[gx][gy] = Math.min(1.0, heatmap[gx][gy] + 0.05);
-
                     let hitX = (bot.x<=0 || bot.x>=500), hitY = (bot.y<=0 || bot.y>=500);
                     if(hitX) { bot.vx*=-1; bot.x = bot.x<=0?0:500; bot.bounces++; }
                     if(hitY) { bot.vy*=-1; bot.y = bot.y<=0?0:500; bot.bounces++; }
-
                     if(hitX && hitY) {
                         const tx = bot.x < 250 ? 0 : 500, ty = bot.y < 250 ? 0 : 500;
                         const prec = Math.sqrt(Math.pow(bot.x-tx,2) + Math.pow(bot.y-ty,2));
                         if(prec < 0.1) logArtifact({ vy: bot.vy, botName: bot.name, winding: Math.floor(bot.bounces/2), precision: prec });
                     }
-
                     if(s % 5 === 0) { bot.trail.push({x: bot.x, y: bot.y}); if(bot.trail.length > 60) bot.trail.shift(); }
-
-                    if(bot.bounces >= 800) {
-                        bot.vy = getNovelVy(bot);
-                        bot.x = 250; bot.y = 250; bot.bounces = 0;
-                    }
+                    if(bot.bounces >= 800) { bot.vy = getNovelVy(bot); bot.x = 250; bot.y = 250; bot.bounces = 0; }
                 }
-
                 if(ctxPhys && document.getElementById('v-sim').classList.contains('active')) {
                     ctxPhys.beginPath(); ctxPhys.strokeStyle = bot.color; ctxPhys.lineWidth = 1.8;
-                    bot.trail.forEach((p, idx) => { 
-                        ctxPhys.globalAlpha = (idx / bot.trail.length) * 0.9;
-                        ctxPhys.lineTo(p.x * (canvasSize/500), p.y * (canvasSize/500)); 
-                    });
-                    ctxPhys.stroke(); ctxPhys.globalAlpha = 1.0;
-                    ctxPhys.fillStyle = bot.color; ctxPhys.shadowBlur = 15; ctxPhys.shadowColor = bot.color;
+                    bot.trail.forEach((p, idx) => { ctxPhys.globalAlpha = (idx / bot.trail.length) * 0.9; ctxPhys.lineTo(p.x * (canvasSize/500), p.y * (canvasSize/500)); });
+                    ctxPhys.stroke(); ctxPhys.globalAlpha = 1.0; ctxPhys.fillStyle = bot.color;
                     ctxPhys.beginPath(); ctxPhys.arc(bot.x*(canvasSize/500), bot.y*(canvasSize/500), 4, 0, Math.PI*2); ctxPhys.fill();
-                    ctxPhys.shadowBlur = 0;
                 }
             });
 
@@ -317,43 +304,21 @@
             if(document.getElementById('v-hyper').classList.contains('active')) renderHyper();
             if(document.getElementById('v-zeta').classList.contains('active')) runZetaLogic();
             if(document.getElementById('v-museum').classList.contains('active')) renderMuseumRecon();
-
-            requestAnimationFrame(runV28);
+            requestAnimationFrame(runV30);
         }
 
         function renderRealityQuadrants() {
             const ctx = document.getElementById('c-reality')?.getContext('2d'); if(!ctx) return;
             const h = canvasSize / 2; ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
             ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)'; ctx.beginPath(); ctx.moveTo(h,0); ctx.lineTo(h,canvasSize); ctx.moveTo(0,h); ctx.lineTo(canvasSize,h); ctx.stroke();
-
-            const infoEl = document.getElementById('reality-bot-info');
-            if(infoEl) infoEl.innerText = ` Vy: ${team7[0].vy.toFixed(6)}`;
-
             team7.forEach(b => {
                 ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1.5, b.y*(h/500)-1.5, 3, 3);
-                ctx.save(); ctx.translate(h, 0); 
-                ctx.beginPath(); ctx.strokeStyle = b.color;
-                b.trail.forEach((p, i) => {
-                    ctx.globalAlpha = (i / b.trail.length) * 0.6;
-                    const px = (p.x/500)*h, py = (p.y/500)*(h/2);
-                    if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-                });
-                ctx.stroke(); ctx.globalAlpha = 1.0;
-                ctx.strokeStyle = COLORS.GOLD; ctx.lineWidth = 0.5;
-                ctx.beginPath(); ctx.moveTo(h/2, h); ctx.lineTo((b.x/500)*h, (b.y/500)*(h/2)); ctx.stroke();
-                ctx.restore();
-                ctx.save(); ctx.translate(0, h);
-                let nx=(b.x-250)/250, ny=(b.y-250)/250, mag=Math.min(0.98, Math.sqrt(nx*nx+ny*ny)), fac=Math.atanh(mag)/mag;
-                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2, 0, Math.PI*2); ctx.fill();
-                ctx.restore();
+                ctx.save(); ctx.translate(h, 0); ctx.beginPath(); ctx.strokeStyle = b.color;
+                b.trail.forEach((p, i) => { ctx.globalAlpha = (i / b.trail.length) * 0.6; const px = (p.x/500)*h, py = (p.y/500)*(h/2); if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py); });
+                ctx.stroke(); ctx.globalAlpha = 1.0; ctx.restore();
+                ctx.save(); ctx.translate(0, h); let nx=(b.x-250)/250, ny=(b.y-250)/250, mag=Math.min(0.98, Math.sqrt(nx*nx+ny*ny)), fac=Math.atanh(mag)/mag;
+                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2, 0, Math.PI*2); ctx.fill(); ctx.restore();
             });
-
-            ctx.save(); ctx.translate(h, h); const rule = Math.floor(team7[0].vy*100)%256;
-            for(let i=0; i<10; i++) for(let j=0; j<10; j++) if((rule >> (i+j)%8)&1) { 
-                ctx.fillStyle=`hsla(${(rule+i*10)%360},90%,55%,0.6)`; 
-                ctx.fillRect(i*(h/10), j*(h/10), h/12, h/12); 
-            }
-            ctx.restore();
         }
 
         function runZetaLogic() {
@@ -363,17 +328,10 @@
                 const m1 = Math.abs(Math.sin(z.t) + Math.sin(z.t * Math.E) + Math.cos(z.t * Math.PI) * 0.4);
                 const m2 = Math.abs(Math.sin(z.t + 0.0001) + Math.sin((z.t + 0.0001) * Math.E));
                 const grad = (m2 - m1) / 0.0001;
-                const detectionIntensity = m1 < 0.5 ? 1.0 : 0.2;
-                const nearLogged = globalZeta.some(gz => Math.abs(gz.t - z.t) < 0.1);
-                if(nearLogged && !z.locked) { z.t += (z.type === 'smith' ? 0.2 : 5.0); return; }
-                z.t -= grad * (z.locked ? 0.0002 : 0.035) * detectionIntensity;
-                if (m1 < 0.005 && Math.abs(grad) < 0.001) { 
-                    z.confirmations++; 
-                    if(z.confirmations > 100) { logZeta(z.t); z.t += (z.type === 'smith' ? 0.5 : 20) + Math.random() * 5; z.locked = false; z.confirmations = 0; } 
-                } else { z.locked = false; }
-                ctx.fillStyle = z.color; ctx.shadowBlur = 15; ctx.shadowColor = z.color;
-                const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = canvasSize - (m1 * canvasSize * 0.85) - 40;
-                ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                z.t -= grad * (z.locked ? 0.0002 : 0.035);
+                if (m1 < 0.005 && Math.abs(grad) < 0.001) { z.confirmations++; if(z.confirmations > 100) { logZeta(z.t); z.t += (z.id < 4 ? 0.5 : 20) + Math.random() * 5; z.locked = false; z.confirmations = 0; } }
+                ctx.fillStyle = z.color; const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = canvasSize - (m1 * canvasSize * 0.85) - 40;
+                ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill();
             });
         }
 
@@ -381,7 +339,7 @@
             const ctx = document.getElementById('c-brain')?.getContext('2d'); if(!ctx) return;
             const cS = canvasSize / ruliadRes;
             const rule = Math.floor(team7[0].vy * 100) % 256;
-            document.getElementById('brain-rule').innerText = `RULE: ${rule} | LEAD: S_ALPHA`;
+            document.getElementById('brain-rule').innerText = `RULE: ${rule}`;
             const nextRow = new Array(ruliadRes).fill(0);
             for(let i=0; i<ruliadRes; i++) {
                 const pat = (ruliadGrid[0][(i-1+ruliadRes)%ruliadRes]<<2)|(ruliadGrid[0][i]<<1)|ruliadGrid[0][(i+1)%ruliadRes];
@@ -389,16 +347,8 @@
             }
             ruliadGrid.unshift(nextRow); ruliadGrid.pop();
             ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
-            ruliadGrid.forEach((row, y) => row.forEach((c, x) => {
-                if(c) { 
-                    const hue = (x / ruliadRes) * 360 + (y / ruliadRes) * 80;
-                    ctx.fillStyle = `hsl(${hue % 360}, 100%, 55%)`; ctx.fillRect(x*cS, y*cS, cS, cS); 
-                }
-            }));
-            team7.forEach(b => {
-                ctx.fillStyle = b.color; ctx.shadowBlur = 25; ctx.shadowColor = b.color;
-                ctx.beginPath(); ctx.arc(b.x*(canvasSize/500), b.y*(canvasSize/500), 5, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-            });
+            ruliadGrid.forEach((row, y) => row.forEach((c, x) => { if(c) { ctx.fillStyle = `hsl(${(x/ruliadRes)*360 + (y/ruliadRes)*80}, 100%, 55%)`; ctx.fillRect(x*cS, y*cS, cS, cS); } }));
+            team7.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x*(canvasSize/500), b.y*(canvasSize/500), 5, 0, Math.PI*2); ctx.fill(); });
         }
 
         function renderMuseumRecon() {
@@ -427,7 +377,7 @@
             });
         }
 
-        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV28(); updateLog("SYSTEM_V28_ACTIVE."); };
+        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV30(); updateLog("PORTABLE_BOOT_SUCCESS."); };
         window.tab = tab; window.selectArtifact = selectArtifact;
     </script>
 </body>
