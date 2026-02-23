@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inversion // Absolute Chromatic V42</title>
+    <title>Inversion // Absolute Unified V44</title>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
@@ -66,6 +66,7 @@
         .museum-layout { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .museum-scroll { flex: 1; overflow-y: auto; padding-right: 5px; }
         .category-header { font-size: 10px; color: var(--gold); border-bottom: 1px solid #333; padding: 5px 0; margin-top: 10px; font-weight: bold; }
+        
         .artifact-card { 
             border-left: 4px solid #333; background: #0a0a0a; padding: 10px; 
             margin-bottom: 4px; font-size: 9px; display: flex; 
@@ -73,18 +74,14 @@
         }
         .artifact-card.selected { border-color: var(--gold); background: #1a1a1a; }
         
-        .re-emergent-flash { animation: flash-crit 0.3s infinite; }
-        @keyframes flash-crit {
-            0% { border-left-color: var(--neon-r); background: #200; }
-            50% { border-left-color: var(--gold); background: #110; }
-            100% { border-left-color: var(--neon-b); background: #002; }
-        }
-
         .reconstruction-pane { display: flex; gap: 10px; height: 160px; margin-top: 5px; background: #050505; border: 1px solid #222; padding: 5px; }
         .recon-box { flex: 1; display: flex; flex-direction: column; border: 1px solid #111; }
         .recon-label { font-size: 7px; color: #666; text-align: center; margin-bottom: 2px; text-transform: uppercase; background: #111; padding: 2px; }
 
         .sim-count-box { color: var(--neon-b); font-weight: bold; border: 1px solid var(--neon-b); padding: 2px 10px; background: rgba(0, 255, 255, 0.05); }
+        
+        .zeta-status { font-size: 8px; color: var(--neon-y); margin-top: 5px; }
+        .void-tag { color: var(--neon-r); font-weight: bold; }
         
         .bmc-btn { 
             position: fixed; top: 10px; right: 10px; background: #ffdd00; 
@@ -119,7 +116,7 @@
     </div>
 
     <div id="v-museum" class="view">
-        <div class="hud"><span>VAULT_ARCHEOLOGY</span><span class="highlight" id="museum-status">RECONSTRUCTING_SELECTED</span></div>
+        <div class="hud"><span>VAULT_ARCHEOLOGY</span><span class="highlight">STRUCTURAL_RECONSTRUCTION</span></div>
         <div class="museum-layout">
             <div class="museum-scroll" id="leaderboard-data"></div>
             <div class="reconstruction-pane">
@@ -131,8 +128,9 @@
 
     <div id="v-hyper" class="view"><div class="hud"><span>HYPER_SPACETIME_DEPTH</span></div><canvas id="c-hyper"></canvas></div>
     <div id="v-zeta" class="view">
-        <div class="hud"><span>ZETA_TASKFORCE: <span id="zeta-count" style="color:var(--gold)">0</span></span><span style="color:var(--neon-p)">THRESHOLD: 0.5</span></div>
+        <div class="hud"><span>ZETA_LEADERBOARD</span><span style="color:var(--neon-p)">SYNCED_CONTINUUM</span></div>
         <canvas id="c-zeta"></canvas>
+        <div id="zeta-leaderboard" style="flex: 1; overflow-y: auto; background: #050505; margin-top: 10px; border: 1px solid #222; font-size: 9px; padding: 10px;"></div>
     </div>
     <div id="v-analyze" class="view">
         <div class="hud"><span>BOT_RATIO_GRADING</span><button onclick="window.downloadData()" style="background:var(--gold); border:none; padding:2px 5px; font-size:8px; cursor:pointer; font-weight:bold;">DOWNLOAD_STATE</button></div>
@@ -154,20 +152,20 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- GLOBAL CONSTANTS ---
+        // --- CORE INITIALIZATION ---
         const COLORS = { G: '#0f0', P: '#f0f', B: '#0ff', Y: '#ff0', W: '#fff', R: '#f03', GOLD: '#ffd700' };
         
         let firebaseConfig = {};
         try {
             firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "none", authDomain: "none", projectId: "none" };
-        } catch (e) { console.warn("Environment local mode."); }
+        } catch (e) { console.warn("Local execution mode."); }
 
         const app = firebaseConfig.apiKey !== "none" ? initializeApp(firebaseConfig) : null;
         const auth = app ? getAuth(app) : null;
         const db = app ? getFirestore(app) : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-ultimate-v42';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-ultimate-v44';
 
-        let user = null, globalMuseum = [], globalZeta = [], canvasSize = 500, selectedArtifact = null;
+        let user = null, globalMuseum = [], globalZeta = [], canvasSize = 500, selectedArtifact = null, authReady = false;
         let totalSimRuns = 0;
         const gridRes = 30, ruliadRes = 100;
         const heatmap = Array.from({ length: gridRes }, () => Array(gridRes).fill(0));
@@ -185,7 +183,9 @@
         ];
 
         const zetaAgents = team7.map((b, i) => ({ 
-            ...b, t: (i < 4 ? 0.1 + (i * 3.5) : 14.13 + (i * 15)), mag: 1, locked: false, confirmations: 0 
+            ...b, 
+            t: (i < 4 ? 14.13 + (i * 3.5) : 30 + (i * 15)), 
+            mag: 1, locked: false, confirmations: 0, isVoid: false 
         }));
 
         // --- AUTH & DATA SYNC ---
@@ -193,9 +193,11 @@
             const bootAuth = async () => {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
                 else await signInAnonymously(auth);
+                authReady = true;
             };
             bootAuth();
-            onAuthStateChanged(auth, async (u) => {
+
+            onAuthStateChanged(auth, (u) => {
                 user = u;
                 if (user) {
                     onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), snap => {
@@ -204,8 +206,8 @@
                         if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
                     });
                     onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), snap => {
-                        globalZeta = snap.docs.map(d => d.data());
-                        document.getElementById('zeta-count').innerText = globalZeta.length;
+                        globalZeta = snap.docs.map(d => d.data()).sort((a,b) => a.t - b.t);
+                        updateZetaLeaderboard();
                     });
                 }
             });
@@ -216,9 +218,9 @@
             if(l) { l.innerHTML += `> ${m}\n`; l.scrollTop = l.scrollHeight; } 
         }
 
-        // --- NOVELTY ENGINE ---
+        // --- NOVELTY CHECK ---
         function getNovelVy(bot) {
-            let candidate; let attempts = 0; const epsilon = 0.00001; 
+            let candidate; let attempts = 0; const epsilon = 0.000001; 
             while(attempts < 100) {
                 candidate = bot.range[0] + Math.random() * (bot.range[1] - bot.range[0]);
                 const isRedundant = globalMuseum.some(m => Math.abs(parseFloat(m.vy) - candidate) < epsilon);
@@ -248,15 +250,15 @@
             if (!user || !db) return;
             try { 
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), { t: tValue, timestamp: Date.now(), userId: user.uid }); 
-                updateLog(`VERIFIED_ZERO_PERMANENT: t=${tValue.toFixed(6)}`);
+                updateLog(`VERIFIED_ZERO_PERMANENT: t=${tValue.toFixed(8)}`);
             } catch (e) {}
         }
 
-        // --- UI UTILS ---
+        // --- UI ---
         function resizeUI() {
-            canvasSize = Math.min(window.innerHeight - 180, window.innerWidth - 40, 500);
+            canvasSize = Math.min(window.innerHeight - 200, window.innerWidth - 40, 500);
             ['c-phys','c-reality','c-hyper','c-zeta','c-brain'].forEach(id => {
-                const c = document.getElementById(id); if(c) { c.width = canvasSize; c.height = canvasSize; }
+                const c = document.getElementById(id); if(c) { c.width = canvasSize; c.height = (id === 'c-zeta') ? 150 : canvasSize; }
             });
             const c2d = document.getElementById('c-museum-2d'), c3d = document.getElementById('c-museum-3d');
             if(c2d) { c2d.width = 180; c2d.height = 130; } if(c3d) { c3d.width = 180; c3d.height = 130; }
@@ -269,6 +271,7 @@
             if(target) target.classList.add('active'); if(btn) btn.classList.add('active');
             if(t === 'museum') updateMuseumUI();
             if(t === 'analyze') updateBotReport();
+            if(t === 'zeta') updateZetaLeaderboard();
         };
 
         const updateBotReport = () => {
@@ -296,14 +299,22 @@
         };
         window.selectArtifact = (ts) => { selectedArtifact = globalMuseum.find(m => m.timestamp.toString() === ts); updateMuseumUI(); };
 
+        const updateZetaLeaderboard = () => {
+            const lb = document.getElementById('zeta-leaderboard'); if(!lb) return;
+            lb.innerHTML = `<div style="color:var(--gold); margin-bottom:5px; border-bottom:1px solid #444;">IRRATIONAL CONTINUUM (Zeros Found: ${globalZeta.length})</div>`;
+            globalZeta.slice(0, 20).forEach((z, i) => {
+                lb.innerHTML += `<div>[Rank ${i+1}] t = ${z.t.toFixed(8)} <span style="color:#555;">(Verified)</span></div>`;
+            });
+        };
+
         window.downloadData = () => {
             const data = { museum: globalMuseum, zeta: globalZeta, bots: team7.map(b=>({name:b.name, ratio: b.struct/(b.chaos||1)})) };
             const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-            a.download = `inversion_v42_final_state.json`; a.click();
+            a.download = `inversion_v44_final_state.json`; a.click();
         };
 
-        // --- MAIN ENGINE V42 ---
-        function runV42() {
+        // --- MAIN RENDER V44 ---
+        function runV44() {
             const ctxPhys = document.getElementById('c-phys')?.getContext('2d');
             if(ctxPhys) {
                 ctxPhys.fillStyle = 'rgba(0,0,0,0.2)'; ctxPhys.fillRect(0,0,canvasSize,canvasSize);
@@ -328,7 +339,7 @@
                         const tx = bot.x < 250 ? 0 : 500, ty = bot.y < 250 ? 0 : 500;
                         const prec = Math.sqrt(Math.pow(bot.x-tx,2) + Math.pow(bot.y-ty,2));
                         bot.lastPrec = prec;
-                        if(prec < 0.1) logArtifact({ vy: bot.vy, botName: bot.name, winding: Math.floor(bot.bounces/2), precision: prec, bounces: bot.bounces }, heatmap[gx][gy]);
+                        if(prec < 0.1) logArtifact({ vy: bot.vy, botName: bot.name, winding: Math.floor(bot.bounces/2), precision: prec, bounces: bot.bounces }, heatmap[gx][gy] || 0);
                     }
                     if(s % 5 === 0) { bot.trail.push({x: bot.x, y: bot.y}); if(bot.trail.length > 50) bot.trail.shift(); }
                     if(bot.bounces >= 800) { bot.vy = getNovelVy(bot); bot.x = 250; bot.y = 250; bot.bounces = 0; }
@@ -348,7 +359,7 @@
             if(document.getElementById('v-hyper').classList.contains('active')) renderHyperSpacetime();
             if(document.getElementById('v-zeta').classList.contains('active')) runZetaLogic();
             if(document.getElementById('v-museum').classList.contains('active')) renderMuseumArcheology();
-            requestAnimationFrame(runV42);
+            requestAnimationFrame(runV44);
         }
 
         function renderRealityQuadrants() {
@@ -356,19 +367,31 @@
             const h = canvasSize / 2; ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
             ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)'; ctx.beginPath(); ctx.moveTo(h,0); ctx.lineTo(h,canvasSize); ctx.moveTo(0,h); ctx.lineTo(canvasSize,h); ctx.stroke();
             team7.forEach(b => {
-                ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1, b.y*(h/500)-1, 3, 3);
+                // Q1: KINETIC + FADING TRAILS
+                ctx.save(); ctx.beginPath(); ctx.strokeStyle = b.color;
+                b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.3; ctx.lineTo((p.x/500)*h, (p.y/500)*h); }); ctx.stroke();
+                ctx.globalAlpha = 1.0; ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1, b.y*(h/500)-1, 3, 3); ctx.restore();
+
                 // Q2: YELLOW BEAMS + LIVE SLICE
-                ctx.save(); ctx.translate(h, 0); 
-                ctx.strokeStyle = COLORS.GOLD; ctx.globalAlpha = 0.5;
+                ctx.save(); ctx.translate(h, 0); ctx.strokeStyle = COLORS.GOLD; ctx.globalAlpha = 0.5;
                 ctx.beginPath(); ctx.moveTo(h/2, h); ctx.lineTo((b.x/500)*h, (b.y/500)*(h/2)); ctx.stroke();
                 ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.moveTo(0, (b.bounces/800)*(h/2)); ctx.lineTo(h, (b.bounces/800)*(h/2)); ctx.stroke();
                 ctx.beginPath(); ctx.strokeStyle = b.color;
-                b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.4; const px=(p.x/500)*h, py=(p.y/500)*(h/2); if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py); }); ctx.stroke();
+                b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.4; ctx.lineTo((p.x/500)*h, (p.y/500)*(h/2)); }); ctx.stroke();
                 ctx.restore();
-                // Q3: Poincaré
-                ctx.save(); ctx.translate(0, h); let nx=(b.x-250)/250, ny=(b.y-250)/250, r2=nx*nx+ny*ny, mag=Math.min(0.98, Math.sqrt(r2)), fac=Math.atanh(mag)/mag;
+
+                // Q3: POINCARÉ + FADING TRAILS
+                ctx.save(); ctx.translate(0, h);
+                ctx.beginPath(); ctx.strokeStyle = b.color;
+                b.trail.forEach((p, i) => {
+                    ctx.globalAlpha = (i/b.trail.length)*0.2;
+                    let nx=(p.x-250)/250, ny=(p.y-250)/250, r2=nx*nx+ny*ny, mag=Math.min(0.98, Math.sqrt(r2)), fac=Math.atanh(mag)/mag;
+                    ctx.lineTo(nx*fac*25+h/2, ny*fac*25+h/2);
+                }); ctx.stroke();
+                let nx=(b.x-250)/250, ny=(b.y-250)/250, mag=Math.min(0.98, Math.sqrt(nx*nx+ny*ny)), fac=Math.atanh(mag)/mag;
                 ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
-                // Q4: DIAGONAL SPECTRAL BLOCKS
+
+                // Q4: DIAGONAL RULIAD BLOCKS
                 ctx.save(); ctx.translate(h, h); 
                 const rule = Math.floor(b.vy * 100) % 256;
                 const bSize = h / 12;
@@ -382,29 +405,34 @@
             });
         }
 
-        // --- ZETA LOGIC WITH RESET ---
+        // --- ZETA TASKFORCE WITH VOID DETECTION ---
         function runZetaLogic() {
             const ctx = document.getElementById('c-zeta')?.getContext('2d'); if(!ctx) return;
-            ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0,0,canvasSize,canvasSize);
+            ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0,0,canvasSize, 150);
             zetaAgents.forEach(z => {
                 const m1 = Math.abs(Math.sin(z.t) + Math.sin(z.t * Math.E) + Math.cos(z.t * Math.PI) * 0.4);
                 const m2 = Math.abs(Math.sin(z.t + 0.0001) + Math.sin((z.t + 0.0001) * Math.E));
                 const grad = (m2 - m1) / 0.0001;
-                z.t -= grad * (z.locked ? 0.0002 : 0.035) * (m1 < 0.5 ? 1.5 : 0.4);
                 
+                // Repulsion from existing zeros
+                const isNear = globalZeta.some(gz => Math.abs(gz.t - z.t) < 0.05);
+                if (isNear) { z.t += 0.5; return; }
+
+                // Void Detection
+                z.isVoid = Math.abs(grad) < 0.0001 && m1 > 1.0;
+                if(z.isVoid) { z.t += Math.random() * 10; return; }
+
+                z.t -= grad * (z.locked ? 0.0002 : 0.035) * (m1 < 0.5 ? 1.5 : 0.4);
                 if (m1 < 0.005 && Math.abs(grad) < 0.001) { 
                     z.confirmations++; 
-                    if(z.confirmations > 100) { 
-                        logZeta(z.t); 
-                        // RESET AFTER LOGGING
-                        z.t = (z.id < 4 ? Math.random() * 15 : 15 + Math.random() * 100); 
-                        z.locked = false; z.confirmations = 0; 
-                    } 
+                    if(z.confirmations > 100) { logZeta(z.t); z.t = Math.random() * 500; z.locked = false; z.confirmations = 0; } 
                 } else { z.locked = false; }
                 
-                ctx.fillStyle = z.color; ctx.shadowBlur = 10; ctx.shadowColor = z.color;
-                const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = canvasSize - (m1 * canvasSize * 0.85) - 40;
-                ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                ctx.fillStyle = z.color; const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = 140 - (m1 * 100);
+                ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = '6px monospace';
+                ctx.fillText(`t:${z.t.toFixed(2)}`, x-15, 148);
+                if(z.isVoid) { ctx.fillStyle = COLORS.R; ctx.fillText("VOID", x-10, y-10); }
             });
         }
 
@@ -459,7 +487,7 @@
             });
         }
 
-        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV42(); };
+        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV44(); };
         window.tab = tab; window.selectArtifact = selectArtifact;
     </script>
 </body>
