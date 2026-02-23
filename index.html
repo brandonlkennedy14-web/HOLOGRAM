@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inversion // Ultimate Unified Matrix V31</title>
+    <title>Inversion // Absolute Chromatic V42</title>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
@@ -18,7 +18,6 @@
             height: 100vh; display: flex; flex-direction: column; overflow: hidden; 
         }
 
-        /* High-Contrast Unified Grid */
         .grid-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-image: 
@@ -58,8 +57,15 @@
 
         #log { font-size: 10px; color: var(--neon-b); white-space: pre-wrap; flex: 1; padding: 10px; background: #080808; overflow-y: scroll; border: 1px solid #111; }
         
+        .math-overlay {
+            position: absolute; top: 70px; left: 20px; font-size: 8px; 
+            color: var(--neon-b); background: rgba(0,0,0,0.8); 
+            padding: 10px; border: 1px solid #222; pointer-events: none; z-index: 700;
+        }
+
         .museum-layout { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .museum-scroll { flex: 1; overflow-y: auto; padding-right: 5px; }
+        .category-header { font-size: 10px; color: var(--gold); border-bottom: 1px solid #333; padding: 5px 0; margin-top: 10px; font-weight: bold; }
         .artifact-card { 
             border-left: 4px solid #333; background: #0a0a0a; padding: 10px; 
             margin-bottom: 4px; font-size: 9px; display: flex; 
@@ -67,18 +73,23 @@
         }
         .artifact-card.selected { border-color: var(--gold); background: #1a1a1a; }
         
-        .reconstruction-pane { display: flex; gap: 10px; height: 140px; margin-top: 5px; }
-        .recon-box { flex: 1; display: flex; flex-direction: column; }
-        .recon-label { font-size: 8px; color: #666; text-align: center; margin-bottom: 2px; }
+        .re-emergent-flash { animation: flash-crit 0.3s infinite; }
+        @keyframes flash-crit {
+            0% { border-left-color: var(--neon-r); background: #200; }
+            50% { border-left-color: var(--gold); background: #110; }
+            100% { border-left-color: var(--neon-b); background: #002; }
+        }
 
-        .highlight { color: #ff0055; font-weight: bold; }
-        .sim-count-box { color: var(--neon-b); font-weight: bold; border: 1px solid var(--neon-b); padding: 2px 5px; }
+        .reconstruction-pane { display: flex; gap: 10px; height: 160px; margin-top: 5px; background: #050505; border: 1px solid #222; padding: 5px; }
+        .recon-box { flex: 1; display: flex; flex-direction: column; border: 1px solid #111; }
+        .recon-label { font-size: 7px; color: #666; text-align: center; margin-bottom: 2px; text-transform: uppercase; background: #111; padding: 2px; }
+
+        .sim-count-box { color: var(--neon-b); font-weight: bold; border: 1px solid var(--neon-b); padding: 2px 10px; background: rgba(0, 255, 255, 0.05); }
         
         .bmc-btn { 
             position: fixed; top: 10px; right: 10px; background: #ffdd00; 
             color: #000; padding: 5px 10px; font-size: 10px; font-weight: bold; 
             text-decoration: none; border-radius: 3px; z-index: 10000; opacity: 0.9; 
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
@@ -88,39 +99,45 @@
 
     <div id="v-sim" class="view active">
         <div class="hud">
-            <span>UNIFIED_EYES_V31</span>
-            <span class="sim-count-box">SIM_TOTAL: <span id="sim-count">0</span></span>
+            <span class="sim-count-box">SIM_TOTAL: <span id="sim-run-count">0</span></span>
+            <span class="sim-count-box">ARTIFACTS: <span id="sim-count">0</span></span>
+        </div>
+        <div class="math-overlay" id="math-diag">
+            Vy: 0.00000000<br>WINDING: 0<br>PREC: 0.00000000
         </div>
         <canvas id="c-phys"></canvas>
     </div>
 
     <div id="v-lab" class="view">
-        <div class="hud"><span>RULIAD_VIBRANT_BRAIN</span><span id="brain-rule" class="highlight">RULE: 0</span></div>
+        <div class="hud"><span>RULIAD_VIBRANT_BRAIN</span><span id="brain-rule" style="color:var(--neon-p)">RULE: 0</span></div>
         <canvas id="c-brain"></canvas>
     </div>
 
     <div id="v-reality" class="view">
-        <div class="hud"><span>QUADRATIC_REALITY_MATRIX</span><span id="reality-bot-info" class="highlight">TEAM_7_DATA_LENS</span></div>
+        <div class="hud"><span>QUADRATIC_REALITY_MATRIX</span><span style="color:var(--neon-b)">BEAMS_AND_BLOCKS: ACTIVE</span></div>
         <canvas id="c-reality"></canvas>
     </div>
 
     <div id="v-museum" class="view">
-        <div class="hud"><span>VAULT_ARCHEOLOGY</span><span class="highlight">SELECT_TO_RECONSTRUCT</span></div>
+        <div class="hud"><span>VAULT_ARCHEOLOGY</span><span class="highlight" id="museum-status">RECONSTRUCTING_SELECTED</span></div>
         <div class="museum-layout">
             <div class="museum-scroll" id="leaderboard-data"></div>
             <div class="reconstruction-pane">
-                <div class="recon-box"><div class="recon-label">2D_PATH</div><canvas id="c-museum-2d"></canvas></div>
-                <div class="recon-box"><div class="recon-label">3D_TOPOLOGY</div><canvas id="c-museum-3d"></canvas></div>
+                <div class="recon-box"><div class="recon-label">2D_TRAJECTORY</div><canvas id="c-museum-2d"></canvas></div>
+                <div class="recon-box"><div class="recon-label">3D_PHASE_SHIFT</div><canvas id="c-museum-3d"></canvas></div>
             </div>
         </div>
     </div>
 
-    <div id="v-hyper" class="view"><div class="hud"><span>HYPERBOLIC_3D_MATRIX</span></div><canvas id="c-hyper"></canvas></div>
+    <div id="v-hyper" class="view"><div class="hud"><span>HYPER_SPACETIME_DEPTH</span></div><canvas id="c-hyper"></canvas></div>
     <div id="v-zeta" class="view">
-        <div class="hud"><span>ZETA_LOGIC_OF_7: <span id="zeta-count" style="color:var(--gold)">0</span></span><span class="highlight">THRESHOLD: 0.5</span></div>
+        <div class="hud"><span>ZETA_TASKFORCE: <span id="zeta-count" style="color:var(--gold)">0</span></span><span style="color:var(--neon-p)">THRESHOLD: 0.5</span></div>
         <canvas id="c-zeta"></canvas>
     </div>
-    <div id="v-analyze" class="view"><div id="log"></div></div>
+    <div id="v-analyze" class="view">
+        <div class="hud"><span>BOT_RATIO_GRADING</span><button onclick="window.downloadData()" style="background:var(--gold); border:none; padding:2px 5px; font-size:8px; cursor:pointer; font-weight:bold;">DOWNLOAD_STATE</button></div>
+        <div id="log"></div>
+    </div>
 
     <nav class="nav">
         <button onclick="tab('sim')" id="b-sim" class="active">EYES</button>
@@ -135,107 +152,114 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- SAFE INITIALIZATION ---
+        // --- GLOBAL CONSTANTS ---
         const COLORS = { G: '#0f0', P: '#f0f', B: '#0ff', Y: '#ff0', W: '#fff', R: '#f03', GOLD: '#ffd700' };
         
         let firebaseConfig = {};
         try {
             firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "none", authDomain: "none", projectId: "none" };
-        } catch (e) { console.warn("Firebase config not found."); }
+        } catch (e) { console.warn("Environment local mode."); }
 
         const app = firebaseConfig.apiKey !== "none" ? initializeApp(firebaseConfig) : null;
         const auth = app ? getAuth(app) : null;
         const db = app ? getFirestore(app) : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-ultimate-v31';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-ultimate-v42';
 
         let user = null, globalMuseum = [], globalZeta = [], canvasSize = 500, selectedArtifact = null;
-        let searchCount = 0;
+        let totalSimRuns = 0;
         const gridRes = 30, ruliadRes = 100;
         const heatmap = Array.from({ length: gridRes }, () => Array(gridRes).fill(0));
         let ruliadGrid = Array.from({ length: ruliadRes }, () => Array(ruliadRes).fill(0));
 
-        // --- TEAM 7 AGENTS (SMITH & BLADE LOGIC) ---
+        // --- TEAM 7 AGENTS ---
         const team7 = [
-            { id: 0, name: "S_Alpha", type: "smith", color: '#00ff44', x: 250, y: 250, vx: 5, vy: 5.1234, trail: [], bounces: 0, range: [0.0001, 0.5], boredom: 0 },
-            { id: 1, name: "S_Beta", type: "smith", color: '#00ccff', x: 250, y: 250, vx: 5, vy: 0.1234, trail: [], bounces: 0, range: [0.0001, 0.5], boredom: 0 },
-            { id: 2, name: "S_Gamma", type: "smith", color: '#ffcc00', x: 250, y: 250, vx: 5, vy: 14.5678, trail: [], bounces: 0, range: [0.5, 10], boredom: 0 },
-            { id: 3, name: "S_Delta", type: "smith", color: '#ff4400', x: 250, y: 250, vx: 5, vy: 21.0982, trail: [], bounces: 0, range: [10, 25], boredom: 0 },
-            { id: 4, name: "B_X", type: "blade", color: '#ff00ff', x: 250, y: 250, vx: 5, vy: 7.1239, trail: [], bounces: 0, range: [0.001, 35], boredom: 0 },
-            { id: 5, name: "B_Y", type: "blade", color: '#00ffff', x: 250, y: 250, vx: 5, vy: 12.4456, trail: [], bounces: 0, range: [0.001, 35], boredom: 0 },
-            { id: 6, name: "B_Z", type: "blade", color: '#ffffff', x: 250, y: 250, vx: 5, vy: 19.8873, trail: [], bounces: 0, range: [0.001, 35], boredom: 0 }
+            { id: 0, name: "S_Alpha", type: "smith", color: '#00ff44', x: 250, y: 250, vx: 5, vy: 5.1234, trail: [], bounces: 0, range: [0.0001, 0.5], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 1, name: "S_Beta", type: "smith", color: '#00ccff', x: 250, y: 250, vx: 5, vy: 0.1234, trail: [], bounces: 0, range: [0.0001, 0.5], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 2, name: "S_Gamma", type: "smith", color: '#ffcc00', x: 250, y: 250, vx: 5, vy: 14.5678, trail: [], bounces: 0, range: [0.5, 10], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 3, name: "S_Delta", type: "smith", color: '#ff4400', x: 250, y: 250, vx: 5, vy: 21.0982, trail: [], bounces: 0, range: [10, 25], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 4, name: "B_X", type: "blade", color: '#ff00ff', x: 250, y: 250, vx: 5, vy: 7.1239, trail: [], bounces: 0, range: [0.001, 35], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 5, name: "B_Y", type: "blade", color: '#00ffff', x: 250, y: 250, vx: 5, vy: 12.4456, trail: [], bounces: 0, range: [0.001, 35], struct: 0, chaos: 0, lastPrec: 0 },
+            { id: 6, name: "B_Z", type: "blade", color: '#ffffff', x: 250, y: 250, vx: 5, vy: 19.8873, trail: [], bounces: 0, range: [0.001, 35], struct: 0, chaos: 0, lastPrec: 0 }
         ];
 
-        // Zeta Agents synced to Logic of 7
         const zetaAgents = team7.map((b, i) => ({ 
-            ...b, 
-            t: (i < 4 ? 0.1 + (i * 3.5) : 14.13 + (i * 15)), 
-            mag: 1, locked: false, confirmations: 0 
+            ...b, t: (i < 4 ? 0.1 + (i * 3.5) : 14.13 + (i * 15)), mag: 1, locked: false, confirmations: 0 
         }));
 
-        // --- DATA SYNC ---
-        if (auth) {
+        // --- AUTH & DATA SYNC ---
+        if (auth && db) {
+            const bootAuth = async () => {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+            };
+            bootAuth();
             onAuthStateChanged(auth, async (u) => {
                 user = u;
-                if (!user) {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                    else await signInAnonymously(auth);
-                } else {
+                if (user) {
                     onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), snap => {
                         globalMuseum = snap.docs.map(d => d.data());
-                        const el = document.getElementById('sim-count'); if(el) el.innerText = globalMuseum.length;
+                        document.getElementById('sim-count').innerText = globalMuseum.length;
                         if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
                     });
                     onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), snap => {
                         globalZeta = snap.docs.map(d => d.data());
-                        const el = document.getElementById('zeta-count'); if(el) el.innerText = globalZeta.length;
+                        document.getElementById('zeta-count').innerText = globalZeta.length;
                     });
                 }
             });
         }
 
-        // --- CORE ENGINES ---
+        function updateLog(m) { 
+            const l = document.getElementById('log'); 
+            if(l) { l.innerHTML += `> ${m}\n`; l.scrollTop = l.scrollHeight; } 
+        }
+
+        // --- NOVELTY ENGINE ---
         function getNovelVy(bot) {
             let candidate; let attempts = 0; const epsilon = 0.00001; 
             while(attempts < 100) {
                 candidate = bot.range[0] + Math.random() * (bot.range[1] - bot.range[0]);
                 const isRedundant = globalMuseum.some(m => Math.abs(parseFloat(m.vy) - candidate) < epsilon);
-                if (!isRedundant) { searchCount++; updateLog(`UNIQUE_Vy_${searchCount}: ${candidate.toFixed(6)}`); return candidate; }
+                if (!isRedundant) { totalSimRuns++; document.getElementById('sim-run-count').innerText = totalSimRuns; return candidate; }
                 attempts++;
             }
             return candidate;
         }
 
-        async function logArtifact(node) {
+        async function logArtifact(node, heat) {
             if (!user || !db) return;
-            const isStructure = node.precision < 0.05;
+            const isStructure = node.precision < 0.04 || heat > 0.85;
+            const bot = team7.find(b => b.name === node.botName);
+            if(bot) isStructure ? bot.struct++ : bot.chaos++;
+            let category = isStructure ? (node.winding % 2 === 0 ? "PERIODIC_STREAK" : "DIAMOND_RESONANCE") : "CHAOTIC_MESH";
+            if (node.bounces > 600 && node.precision < 0.01) category = "RE_EMERGENT";
+            if (node.precision < 0.005) category = "HYPER_SINGULARITY";
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), {
-                    ...node, shape: isStructure ? (node.winding % 2 === 0 ? "RECTANGLE" : "DIAMOND") : "ASYMMETRIC", 
-                    classification: isStructure ? "STRUCTURE" : "RANDOMNESS", timestamp: Date.now(), userId: user.uid
+                    ...node, category, classification: isStructure ? "STRUCTURE" : "RANDOMNESS", 
+                    heat, timestamp: Date.now(), userId: user.uid
                 });
             } catch (e) {}
         }
 
         async function logZeta(tValue) {
             if (!user || !db) return;
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), {
-                    t: tValue, timestamp: Date.now(), userId: user.uid
-                });
+            try { 
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), { t: tValue, timestamp: Date.now(), userId: user.uid }); 
+                updateLog(`VERIFIED_ZERO_PERMANENT: t=${tValue.toFixed(6)}`);
             } catch (e) {}
         }
 
-        // --- RENDERING & UI ---
+        // --- UI UTILS ---
         function resizeUI() {
             canvasSize = Math.min(window.innerHeight - 180, window.innerWidth - 40, 500);
             ['c-phys','c-reality','c-hyper','c-zeta','c-brain'].forEach(id => {
                 const c = document.getElementById(id); if(c) { c.width = canvasSize; c.height = canvasSize; }
             });
             const c2d = document.getElementById('c-museum-2d'), c3d = document.getElementById('c-museum-3d');
-            if(c2d) { c2d.width = 180; c2d.height = 130; }
-            if(c3d) { c3d.width = 180; c3d.height = 130; }
+            if(c2d) { c2d.width = 180; c2d.height = 130; } if(c3d) { c3d.width = 180; c3d.height = 130; }
         }
         window.addEventListener('resize', resizeUI);
 
@@ -244,35 +268,49 @@
             const target = document.getElementById('v-' + t), btn = document.getElementById('b-' + t);
             if(target) target.classList.add('active'); if(btn) btn.classList.add('active');
             if(t === 'museum') updateMuseumUI();
+            if(t === 'analyze') updateBotReport();
         };
 
-        const updateLog = m => { const l = document.getElementById('log'); if(l) { l.innerHTML += `> ${m}\n`; l.scrollTop = l.scrollHeight; } };
+        const updateBotReport = () => {
+            let log = document.getElementById('log'); log.innerHTML = "";
+            team7.forEach(b => {
+                const ratio = (b.struct / (b.chaos || 1)).toFixed(2);
+                log.innerHTML += `<div style="margin-bottom:10px; color:${b.color}">[${b.name}] RATIO: ${ratio} | S: ${b.struct} | C: ${b.chaos}</div>`;
+            });
+        };
 
         const updateMuseumUI = () => {
             const container = document.getElementById('leaderboard-data'); if(!container) return;
-            const sorted = [...globalMuseum].sort((a,b) => b.timestamp - a.timestamp).slice(0, 15);
-            container.innerHTML = sorted.map(m => `
-                <div class="artifact-card ${selectedArtifact?.timestamp === m.timestamp ? 'selected' : ''}" 
-                     onclick="window.selectArtifact('${m.timestamp}')">
-                    <div><b style="color:var(--neon-b)">${m.shape}</b> [${m.botName}]<br><small>Δ:${m.precision?.toFixed(5)} | Vy:${parseFloat(m.vy).toFixed(5)}</small></div>
-                    <div style="color:${m.classification === 'STRUCTURE' ? 'var(--gold)' : 'var(--neon-p)'}">${m.classification}</div>
-                </div>
-            `).join('');
+            const groups = { HYPER_SINGULARITY: [], RE_EMERGENT: [], PERIODIC_STREAK: [], DIAMOND_RESONANCE: [], CHAOTIC_MESH: [] };
+            [...globalMuseum].forEach(m => groups[m.category || "CHAOTIC_MESH"]?.push(m));
+            container.innerHTML = Object.entries(groups).map(([cat, list]) => list.length > 0 ? `
+                <div class="category-header">${cat} (${list.length})</div>
+                ${list.slice(0, 5).map(m => `
+                    <div class="artifact-card ${selectedArtifact?.timestamp === m.timestamp ? 'selected' : ''} ${cat === 'RE_EMERGENT' ? 're-emergent-flash' : ''}" 
+                         onclick="window.selectArtifact('${m.timestamp}')">
+                        <div><b style="color:var(--neon-b)">Vy:${m.vy?.toFixed(6)}</b><br><small>Δ:${m.precision?.toFixed(5)}</small></div>
+                        <div style="color:var(--gold)">${m.botName}</div>
+                    </div>
+                `).join('')}
+            ` : '').join('');
+        };
+        window.selectArtifact = (ts) => { selectedArtifact = globalMuseum.find(m => m.timestamp.toString() === ts); updateMuseumUI(); };
+
+        window.downloadData = () => {
+            const data = { museum: globalMuseum, zeta: globalZeta, bots: team7.map(b=>({name:b.name, ratio: b.struct/(b.chaos||1)})) };
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+            a.download = `inversion_v42_final_state.json`; a.click();
         };
 
-        window.selectArtifact = (ts) => {
-            selectedArtifact = globalMuseum.find(m => m.timestamp.toString() === ts);
-            updateMuseumUI();
-        };
-
-        function runV31() {
+        // --- MAIN ENGINE V42 ---
+        function runV42() {
             const ctxPhys = document.getElementById('c-phys')?.getContext('2d');
             if(ctxPhys) {
                 ctxPhys.fillStyle = 'rgba(0,0,0,0.2)'; ctxPhys.fillRect(0,0,canvasSize,canvasSize);
                 const cellS = canvasSize / gridRes;
                 for(let i=0; i<gridRes; i++) for(let j=0; j<gridRes; j++) {
                     if(heatmap[i][j] > 0) {
-                        ctxPhys.fillStyle = `rgba(255, 69, 0, ${heatmap[i][j] * 0.4})`;
+                        ctxPhys.fillStyle = `rgba(0, 255, 255, ${heatmap[i][j] * 0.15})`;
                         ctxPhys.fillRect(i*cellS, j*cellS, cellS, cellS); heatmap[i][j] *= 0.98;
                     }
                 }
@@ -282,16 +320,17 @@
                 for(let s=0; s<15; s++) {
                     bot.x += bot.vx; bot.y += bot.vy;
                     const gx = Math.floor(bot.x / (500/gridRes)), gy = Math.floor(bot.y / (500/gridRes));
-                    if(gx>=0 && gx<gridRes && gy>=0 && gy<gridRes) heatmap[gx][gy] = Math.min(1.0, heatmap[gx][gy] + 0.05);
+                    if(gx>=0 && gx<gridRes && gy>=0 && gy<gridRes) heatmap[gx][gy] = Math.min(1.0, heatmap[gx][gy] + 0.08);
                     let hitX = (bot.x<=0 || bot.x>=500), hitY = (bot.y<=0 || bot.y>=500);
                     if(hitX) { bot.vx*=-1; bot.x = bot.x<=0?0:500; bot.bounces++; }
                     if(hitY) { bot.vy*=-1; bot.y = bot.y<=0?0:500; bot.bounces++; }
                     if(hitX && hitY) {
                         const tx = bot.x < 250 ? 0 : 500, ty = bot.y < 250 ? 0 : 500;
                         const prec = Math.sqrt(Math.pow(bot.x-tx,2) + Math.pow(bot.y-ty,2));
-                        if(prec < 0.1) logArtifact({ x: bot.x, y: bot.y, vy: bot.vy, botName: bot.name, winding: Math.floor(bot.bounces/2), precision: prec });
+                        bot.lastPrec = prec;
+                        if(prec < 0.1) logArtifact({ vy: bot.vy, botName: bot.name, winding: Math.floor(bot.bounces/2), precision: prec, bounces: bot.bounces }, heatmap[gx][gy]);
                     }
-                    if(s % 5 === 0) { bot.trail.push({x: bot.x, y: bot.y}); if(bot.trail.length > 60) bot.trail.shift(); }
+                    if(s % 5 === 0) { bot.trail.push({x: bot.x, y: bot.y}); if(bot.trail.length > 50) bot.trail.shift(); }
                     if(bot.bounces >= 800) { bot.vy = getNovelVy(bot); bot.x = 250; bot.y = 250; bot.bounces = 0; }
                 }
                 if(ctxPhys && document.getElementById('v-sim').classList.contains('active')) {
@@ -302,56 +341,48 @@
                 }
             });
 
+            document.getElementById('math-diag').innerHTML = `Vy: ${team7[0].vy.toFixed(8)}<br>WINDING: ${Math.floor(team7[0].bounces/2)}<br>PRECISION: ${team7[0].lastPrec.toFixed(8)}`;
+
             if(document.getElementById('v-lab').classList.contains('active')) renderBrain();
             if(document.getElementById('v-reality').classList.contains('active')) renderRealityQuadrants();
-            if(document.getElementById('v-hyper').classList.contains('active')) renderHyper();
+            if(document.getElementById('v-hyper').classList.contains('active')) renderHyperSpacetime();
             if(document.getElementById('v-zeta').classList.contains('active')) runZetaLogic();
-            if(document.getElementById('v-museum').classList.contains('active')) renderMuseumRecon();
-            requestAnimationFrame(runV31);
+            if(document.getElementById('v-museum').classList.contains('active')) renderMuseumArcheology();
+            requestAnimationFrame(runV42);
         }
 
-        // --- FULL QUADRATIC MATRIX RESTORED ---
         function renderRealityQuadrants() {
             const ctx = document.getElementById('c-reality')?.getContext('2d'); if(!ctx) return;
             const h = canvasSize / 2; ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
             ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)'; ctx.beginPath(); ctx.moveTo(h,0); ctx.lineTo(h,canvasSize); ctx.moveTo(0,h); ctx.lineTo(canvasSize,h); ctx.stroke();
-            
-            const lead = team7[0];
-            const infoEl = document.getElementById('reality-bot-info');
-            if(infoEl) infoEl.innerText = ` Vy: ${lead.vy.toFixed(6)}`;
-
             team7.forEach(b => {
-                // Q1: Kinetic Euclidean
-                ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1.5, b.y*(h/500)-1.5, 3, 3);
-
-                // Q2: Isosceles Perspective + Chromatic Fading Trails
+                ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1, b.y*(h/500)-1, 3, 3);
+                // Q2: YELLOW BEAMS + LIVE SLICE
                 ctx.save(); ctx.translate(h, 0); 
+                ctx.strokeStyle = COLORS.GOLD; ctx.globalAlpha = 0.5;
+                ctx.beginPath(); ctx.moveTo(h/2, h); ctx.lineTo((b.x/500)*h, (b.y/500)*(h/2)); ctx.stroke();
+                ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.moveTo(0, (b.bounces/800)*(h/2)); ctx.lineTo(h, (b.bounces/800)*(h/2)); ctx.stroke();
                 ctx.beginPath(); ctx.strokeStyle = b.color;
-                b.trail.forEach((p, i) => {
-                    ctx.globalAlpha = (i / b.trail.length) * 0.6;
-                    const px = (p.x/500)*h, py = (p.y/500)*(h/2);
-                    if(i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-                });
-                ctx.stroke(); ctx.globalAlpha = 1.0;
-                ctx.strokeStyle = COLORS.GOLD; ctx.beginPath(); ctx.moveTo(h/2, h); ctx.lineTo((b.x/500)*h, (b.y/500)*(h/2)); ctx.stroke();
+                b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.4; const px=(p.x/500)*h, py=(p.y/500)*(h/2); if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py); }); ctx.stroke();
                 ctx.restore();
-
-                // Q3: Poincaré Hyperbolic Disk
-                ctx.save(); ctx.translate(0, h);
-                let nx=(b.x-250)/250, ny=(b.y-250)/250, mag=Math.min(0.98, Math.sqrt(nx*nx+ny*ny)), fac=Math.atanh(mag)/mag;
-                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2.5, 0, Math.PI*2); ctx.fill();
+                // Q3: Poincaré
+                ctx.save(); ctx.translate(0, h); let nx=(b.x-250)/250, ny=(b.y-250)/250, r2=nx*nx+ny*ny, mag=Math.min(0.98, Math.sqrt(r2)), fac=Math.atanh(mag)/mag;
+                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+                // Q4: DIAGONAL SPECTRAL BLOCKS
+                ctx.save(); ctx.translate(h, h); 
+                const rule = Math.floor(b.vy * 100) % 256;
+                const bSize = h / 12;
+                for(let i=0; i<10; i++) for(let j=0; j<10; j++) {
+                    if((rule >> (i+j)%8)&1) { 
+                        ctx.fillStyle = `hsla(${(rule+i*15)%360}, 75%, 50%, 0.65)`;
+                        ctx.fillRect(i*bSize, j*bSize, bSize-1, bSize-1); 
+                    }
+                }
                 ctx.restore();
             });
-
-            // Q4: Spectral Ruliad Rule DNA
-            ctx.save(); ctx.translate(h, h); const rule = Math.floor(lead.vy*100)%256;
-            for(let i=0; i<10; i++) for(let j=0; j<10; j++) if((rule >> (i+j)%8)&1) { 
-                ctx.fillStyle=`hsla(${(rule+i*10)%360},90%,55%,0.6)`; 
-                ctx.fillRect(i*(h/10), j*(h/10), h/12, h/12); 
-            }
-            ctx.restore();
         }
 
+        // --- ZETA LOGIC WITH RESET ---
         function runZetaLogic() {
             const ctx = document.getElementById('c-zeta')?.getContext('2d'); if(!ctx) return;
             ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0,0,canvasSize,canvasSize);
@@ -359,25 +390,49 @@
                 const m1 = Math.abs(Math.sin(z.t) + Math.sin(z.t * Math.E) + Math.cos(z.t * Math.PI) * 0.4);
                 const m2 = Math.abs(Math.sin(z.t + 0.0001) + Math.sin((z.t + 0.0001) * Math.E));
                 const grad = (m2 - m1) / 0.0001;
-                const detectionIntensity = m1 < 0.5 ? 1.2 : 0.4;
-                const nearLogged = globalZeta.some(gz => Math.abs(gz.t - z.t) < 0.1);
-                if(nearLogged && !z.locked) { z.t += (z.type === 'smith' ? 0.2 : 5.0); return; }
-                z.t -= grad * (z.locked ? 0.0002 : 0.035) * detectionIntensity;
+                z.t -= grad * (z.locked ? 0.0002 : 0.035) * (m1 < 0.5 ? 1.5 : 0.4);
+                
                 if (m1 < 0.005 && Math.abs(grad) < 0.001) { 
                     z.confirmations++; 
-                    if(z.confirmations > 100) { logZeta(z.t); z.t += (z.type === 'smith' ? 0.5 : 20) + Math.random() * 5; z.locked = false; z.confirmations = 0; } 
+                    if(z.confirmations > 100) { 
+                        logZeta(z.t); 
+                        // RESET AFTER LOGGING
+                        z.t = (z.id < 4 ? Math.random() * 15 : 15 + Math.random() * 100); 
+                        z.locked = false; z.confirmations = 0; 
+                    } 
                 } else { z.locked = false; }
-                ctx.fillStyle = z.color; ctx.shadowBlur = 15; ctx.shadowColor = z.color;
+                
+                ctx.fillStyle = z.color; ctx.shadowBlur = 10; ctx.shadowColor = z.color;
                 const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = canvasSize - (m1 * canvasSize * 0.85) - 40;
-                ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+                ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
             });
+        }
+
+        function renderMuseumArcheology() {
+            if(!selectedArtifact) return;
+            const c2d = document.getElementById('c-museum-2d')?.getContext('2d'), c3d = document.getElementById('c-museum-3d')?.getContext('2d');
+            if(!c2d || !c3d) return;
+            const vy = parseFloat(selectedArtifact.vy), t = Date.now() * 0.001;
+            c2d.fillStyle = '#050505'; c2d.fillRect(0,0,180,130);
+            c2d.strokeStyle = selectedArtifact.category === 'RE_EMERGENT' ? `hsl(${Math.random()*360}, 100%, 50%)` : COLORS.B;
+            c2d.lineWidth = 1; c2d.beginPath();
+            let tx=90, ty=65, tvx=3, tvy=vy/3;
+            for(let i=0; i<80; i++){ tx+=tvx; ty+=tvy; if(tx<=0||tx>=180)tvx*=-1; if(ty<=0||ty>=130)tvy*=-1; c2d.lineTo(tx,ty); }
+            c2d.stroke();
+            c3d.fillStyle = '#000'; c3d.fillRect(0,0,180,130); c3d.strokeStyle = COLORS.GOLD;
+            for(let i=0; i<40; i++) {
+                const ang = (i/40) * Math.PI * 2 + t;
+                const rad = 30 + Math.sin(i*vy*0.1 + t*4)*10;
+                const r2 = (Math.cos(ang)*rad)**2 + (Math.sin(ang)*rad)**2 + 0.1;
+                c3d.beginPath(); c3d.moveTo(90+Math.cos(ang)*rad, 65+Math.sin(ang)*rad);
+                c3d.lineTo(90+(Math.cos(ang)*rad)/r2*800, 65+(Math.sin(ang)*rad)/r2*800); c3d.globalAlpha=0.2; c3d.stroke();
+            }
+            c3d.globalAlpha = 1.0;
         }
 
         function renderBrain() {
             const ctx = document.getElementById('c-brain')?.getContext('2d'); if(!ctx) return;
-            const cS = canvasSize / ruliadRes;
-            const rule = Math.floor(team7[0].vy * 100) % 256;
-            document.getElementById('brain-rule').innerText = `RULE: ${rule}`;
+            const cS = canvasSize / ruliadRes, rule = Math.floor(team7[0].vy * 100) % 256;
             const nextRow = new Array(ruliadRes).fill(0);
             for(let i=0; i<ruliadRes; i++) {
                 const pat = (ruliadGrid[0][(i-1+ruliadRes)%ruliadRes]<<2)|(ruliadGrid[0][i]<<1)|ruliadGrid[0][(i+1)%ruliadRes];
@@ -385,45 +440,26 @@
             }
             ruliadGrid.unshift(nextRow); ruliadGrid.pop();
             ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
-            ruliadGrid.forEach((row, y) => row.forEach((c, x) => {
-                if(c) { 
-                    const hue = (x / ruliadRes) * 360 + (y / ruliadRes) * 80;
-                    ctx.fillStyle = `hsl(${hue % 360}, 100%, 55%)`; ctx.fillRect(x*cS, y*cS, cS, cS); 
-                }
-            }));
-            team7.forEach(b => {
-                ctx.fillStyle = b.color; ctx.shadowBlur = 25; ctx.shadowColor = b.color;
-                ctx.beginPath(); ctx.arc(b.x*(canvasSize/500), b.y*(canvasSize/500), 5.5, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-            });
+            ruliadGrid.forEach((row, y) => row.forEach((c, x) => { if(c) { ctx.fillStyle = `hsl(${(x/ruliadRes)*360 + (y/ruliadRes)*80}, 100%, 55%)`; ctx.fillRect(x*cS, y*cS, cS, cS); } }));
+            team7.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x*(canvasSize/500), b.y*(canvasSize/500), 5.5, 0, Math.PI*2); ctx.fill(); });
         }
 
-        function renderMuseumRecon() {
-            if(!selectedArtifact) return;
-            const c2d = document.getElementById('c-museum-2d')?.getContext('2d'), c3d = document.getElementById('c-museum-3d')?.getContext('2d');
-            if(!c2d || !c3d) return;
-            const vy = parseFloat(selectedArtifact.vy), t = Date.now() * 0.001;
-            c2d.fillStyle = '#000'; c2d.fillRect(0,0,180,130); c2d.strokeStyle = COLORS.G; c2d.beginPath();
-            let x=90, y=65, vx=3, vyv=vy/2;
-            for(let i=0; i<100; i++) { x+=vx; y+=vyv; if(x<=0||x>=180)vx*=-1; if(y<=0||y>=130)vyv*=-1; c2d.lineTo(x,y); } c2d.stroke();
-            c3d.fillStyle = '#000'; c3d.fillRect(0,0,180,130); c3d.strokeStyle = COLORS.GOLD; c3d.beginPath();
-            let ax=90, ay=65, avx=3, avy=vy/2;
-            for(let i=0; i<150; i++) { ax+=avx; ay+=avy; if(ax<=0||ax>=180)avx*=-1; if(ay<=0||ay>=130)avy*=-1; const s=1+Math.sin(i*0.05+t)*0.2; c3d.lineTo(90+(ax-90)*s, 65+(ay-65)*s); } c3d.stroke();
-        }
-
-        function renderHyper() {
+        function renderHyperSpacetime() {
             const ctx = document.getElementById('c-hyper')?.getContext('2d'); if(!ctx) return;
             ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(0,0,canvasSize,canvasSize);
-            const t = Date.now() * 0.0005;
+            const time = Date.now() * 0.0006, R = 150, r = 60;
             team7.forEach(b => {
-                const bx=(b.x-250)*Math.cos(t), by=(b.y-250)*Math.sin(t);
-                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(canvasSize/2+bx, canvasSize/2+by, 3.5, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.strokeStyle = b.color; ctx.globalAlpha = 0.35;
-                b.trail.forEach(p => ctx.lineTo(canvasSize/2+(p.x-250)*Math.cos(t), canvasSize/2+(p.y-250)*Math.sin(t)));
-                ctx.stroke(); ctx.globalAlpha = 1;
+                const u=((b.vy%1)*2*Math.PI)+time, v=(b.x/500)*2*Math.PI, scale=400/(400+(r*Math.sin(v))+200);
+                const sx=canvasSize/2+((R+r*Math.cos(v))*Math.cos(u))*scale, sy=canvasSize/2+((R+r*Math.cos(v))*Math.sin(u))*scale;
+                ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(sx,sy,4*scale,0,Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.strokeStyle=b.color; b.trail.forEach((p,i)=>{
+                    const s2=400/(400+(r*Math.sin((p.x/500)*2*Math.PI))+200);
+                    ctx.globalAlpha=(i/b.trail.length)*0.3; ctx.lineTo(canvasSize/2+((R+r*Math.cos((p.x/500)*2*Math.PI))*Math.cos(u))*s2, canvasSize/2+((R+r*Math.cos((p.x/500)*2*Math.PI))*Math.sin(u))*s2);
+                }); ctx.stroke();
             });
         }
 
-        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV31(); updateLog("PORTABLE_BOOT_SUCCESS. V31 UNIFIED."); };
+        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV42(); };
         window.tab = tab; window.selectArtifact = selectArtifact;
     </script>
 </body>
