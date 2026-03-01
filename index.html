@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Inversion // Absolute Unified V44</title>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js" type="module"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js" type="module"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js" type="module"></script>
+    <title>Inversion // Absolute Unified V44 - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { 
             --neon-g: #0f0; --neon-p: #f0f; --neon-b: #0ff; 
@@ -43,12 +41,12 @@
             box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.3);
             text-shadow: 0 0 10px var(--neon-b);
         }
-        
+
         .view { display: none; flex: 1; flex-direction: column; padding: 10px; padding-bottom: 70px; box-sizing: border-box; width: 100%; height: 100%; z-index: 10; }
         .view.active { display: flex; }
-        
+
         canvas { background: #000; border: 1px solid #333; display: block; margin: auto; position: relative; }
-        
+
         .hud { 
             display: flex; justify-content: space-between; font-size: 9px; 
             color: var(--neon-p); padding: 5px; width: 100%; 
@@ -56,7 +54,7 @@
         }
 
         #log { font-size: 10px; color: var(--neon-b); white-space: pre-wrap; flex: 1; padding: 10px; background: #080808; overflow-y: scroll; border: 1px solid #111; }
-        
+
         .math-overlay {
             position: absolute; top: 70px; left: 20px; font-size: 8px; 
             color: var(--neon-b); background: rgba(0,0,0,0.8); 
@@ -66,23 +64,23 @@
         .museum-layout { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden; }
         .museum-scroll { flex: 1; overflow-y: auto; padding-right: 5px; }
         .category-header { font-size: 10px; color: var(--gold); border-bottom: 1px solid #333; padding: 5px 0; margin-top: 10px; font-weight: bold; }
-        
+
         .artifact-card { 
             border-left: 4px solid #333; background: #0a0a0a; padding: 10px; 
             margin-bottom: 4px; font-size: 9px; display: flex; 
             justify-content: space-between; align-items: center; cursor: pointer;
         }
         .artifact-card.selected { border-color: var(--gold); background: #1a1a1a; }
-        
+
         .reconstruction-pane { display: flex; gap: 10px; height: 160px; margin-top: 5px; background: #050505; border: 1px solid #222; padding: 5px; }
         .recon-box { flex: 1; display: flex; flex-direction: column; border: 1px solid #111; }
         .recon-label { font-size: 7px; color: #666; text-align: center; margin-bottom: 2px; text-transform: uppercase; background: #111; padding: 2px; }
 
         .sim-count-box { color: var(--neon-b); font-weight: bold; border: 1px solid var(--neon-b); padding: 2px 10px; background: rgba(0, 255, 255, 0.05); }
-        
+
         .zeta-status { font-size: 8px; color: var(--neon-y); margin-top: 5px; }
         .void-tag { color: var(--neon-r); font-weight: bold; }
-        
+
         .bmc-btn { 
             position: fixed; top: 10px; right: 10px; background: #ffdd00; 
             color: #000; padding: 5px 10px; font-size: 10px; font-weight: bold; 
@@ -148,22 +146,15 @@
     </nav>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const supabaseUrl = 'https://jeddcrgchxvdihmxuxpr.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImplZGRjcmdjaHh2ZGlobXh1eHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MDQ4NjAsImV4cCI6MjA4Njk4MDg2MH0.WnCrWYXYsJPlxMj-RisMHBCveKUgI7HlBh0Peh1T6Vw';
+
+        const supabase = Supabase.createClient(supabaseUrl, supabaseAnonKey);
 
         // --- CORE INITIALIZATION ---
         const COLORS = { G: '#0f0', P: '#f0f', B: '#0ff', Y: '#ff0', W: '#fff', R: '#f03', GOLD: '#ffd700' };
-        
-        let firebaseConfig = {};
-        try {
-            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "none", authDomain: "none", projectId: "none" };
-        } catch (e) { console.warn("Local execution mode."); }
 
-        const app = firebaseConfig.apiKey !== "none" ? initializeApp(firebaseConfig) : null;
-        const auth = app ? getAuth(app) : null;
-        const db = app ? getFirestore(app) : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'inversion-ultimate-v44';
+        const appId = 'inversion-ultimate-v44';
 
         let user = null, globalMuseum = [], globalZeta = [], canvasSize = 500, selectedArtifact = null, authReady = false;
         let totalSimRuns = 0;
@@ -189,29 +180,69 @@
         }));
 
         // --- AUTH & DATA SYNC ---
-        if (auth && db) {
-            const bootAuth = async () => {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
-                else await signInAnonymously(auth);
-                authReady = true;
-            };
-            bootAuth();
+        async function bootAuth() {
+            const { data: { session }, error } = await supabase.auth.signInAnonymously();
+            if (error) {
+                console.error("Anon auth failed:", error);
+                updateLog("AUTH FAILED – CHECK RLS OR KEY");
+                return;
+            }
+            user = session?.user ?? null;
+            authReady = true;
+            if (user) {
+                console.log("Anon user ID:", user.id);
+                subscribeToMuseum();
+                subscribeToZeta();
+            }
+        }
 
-            onAuthStateChanged(auth, (u) => {
-                user = u;
-                if (user) {
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), snap => {
-                        globalMuseum = snap.docs.map(d => d.data());
+        function subscribeToMuseum() {
+            supabase
+                .from('museum')
+                .select('*')
+                .then(({ data, error }) => {
+                    if (!error && data) {
+                        globalMuseum = data;
+                        document.getElementById('sim-count').innerText = globalMuseum.length;
+                        if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
+                    }
+                });
+
+            supabase
+                .channel('museum-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'museum' }, () => {
+                    supabase.from('museum').select('*').then(({ data }) => {
+                        globalMuseum = data || [];
                         document.getElementById('sim-count').innerText = globalMuseum.length;
                         if (document.getElementById('v-museum').classList.contains('active')) updateMuseumUI();
                     });
-                    onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), snap => {
-                        globalZeta = snap.docs.map(d => d.data()).sort((a,b) => a.t - b.t);
+                })
+                .subscribe();
+        }
+
+        function subscribeToZeta() {
+            supabase
+                .from('zeta_zeros')
+                .select('*')
+                .then(({ data, error }) => {
+                    if (!error && data) {
+                        globalZeta = data.sort((a,b) => a.t - b.t);
+                        updateZetaLeaderboard();
+                    }
+                });
+
+            supabase
+                .channel('zeta-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'zeta_zeros' }, () => {
+                    supabase.from('zeta_zeros').select('*').then(({ data }) => {
+                        globalZeta = data?.sort((a,b) => a.t - b.t) || [];
                         updateZetaLeaderboard();
                     });
-                }
-            });
+                })
+                .subscribe();
         }
+
+        bootAuth();
 
         function updateLog(m) { 
             const l = document.getElementById('log'); 
@@ -224,83 +255,126 @@
             while(attempts < 100) {
                 candidate = bot.range[0] + Math.random() * (bot.range[1] - bot.range[0]);
                 const isRedundant = globalMuseum.some(m => Math.abs(parseFloat(m.vy) - candidate) < epsilon);
-                if (!isRedundant) { totalSimRuns++; document.getElementById('sim-run-count').innerText = totalSimRuns; return candidate; }
+                if (!isRedundant) { 
+                    totalSimRuns++; 
+                    document.getElementById('sim-run-count').innerText = totalSimRuns; 
+                    return candidate; 
+                }
                 attempts++;
             }
             return candidate;
         }
 
         async function logArtifact(node, heat) {
-            if (!user || !db) return;
+            if (!user) return;
             const isStructure = node.precision < 0.04 || heat > 0.85;
             const bot = team7.find(b => b.name === node.botName);
             if(bot) isStructure ? bot.struct++ : bot.chaos++;
             let category = isStructure ? (node.winding % 2 === 0 ? "PERIODIC_STREAK" : "DIAMOND_RESONANCE") : "CHAOTIC_MESH";
             if (node.bounces > 600 && node.precision < 0.01) category = "RE_EMERGENT";
             if (node.precision < 0.005) category = "HYPER_SINGULARITY";
-            try {
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'museum'), {
-                    ...node, category, classification: isStructure ? "STRUCTURE" : "RANDOMNESS", 
-                    heat, timestamp: Date.now(), userId: user.uid
+
+            const { error } = await supabase
+                .from('museum')
+                .insert({
+                    ...node,
+                    category,
+                    classification: isStructure ? "STRUCTURE" : "RANDOMNESS",
+                    heat,
+                    timestamp: Date.now(),
+                    user_id: user.id
                 });
-            } catch (e) {}
+
+            if (error) {
+                console.error("Museum insert error:", error);
+                updateLog("ARTIFACT SAVE FAILED");
+            }
         }
 
         async function logZeta(tValue) {
-            if (!user || !db) return;
-            try { 
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'zeta_zeros'), { t: tValue, timestamp: Date.now(), userId: user.uid }); 
+            if (!user) return;
+            const { error } = await supabase
+                .from('zeta_zeros')
+                .insert({ 
+                    t: tValue, 
+                    timestamp: Date.now(), 
+                    user_id: user.id 
+                });
+
+            if (!error) {
                 updateLog(`VERIFIED_ZERO_PERMANENT: t=${tValue.toFixed(8)}`);
-            } catch (e) {}
+            } else {
+                console.error("Zeta insert error:", error);
+            }
         }
 
         // --- UI ---
         function resizeUI() {
             canvasSize = Math.min(window.innerHeight - 200, window.innerWidth - 40, 500);
             ['c-phys','c-reality','c-hyper','c-zeta','c-brain'].forEach(id => {
-                const c = document.getElementById(id); if(c) { c.width = canvasSize; c.height = (id === 'c-zeta') ? 150 : canvasSize; }
+                const c = document.getElementById(id); 
+                if(c) { 
+                    c.width = canvasSize; 
+                    c.height = (id === 'c-zeta') ? 150 : canvasSize; 
+                }
             });
             const c2d = document.getElementById('c-museum-2d'), c3d = document.getElementById('c-museum-3d');
-            if(c2d) { c2d.width = 180; c2d.height = 130; } if(c3d) { c3d.width = 180; c3d.height = 130; }
+            if(c2d) { c2d.width = 180; c2d.height = 130; } 
+            if(c3d) { c3d.width = 180; c3d.height = 130; }
         }
         window.addEventListener('resize', resizeUI);
 
         window.tab = (t) => {
             document.querySelectorAll('.view, .nav button').forEach(el => el.classList.remove('active'));
             const target = document.getElementById('v-' + t), btn = document.getElementById('b-' + t);
-            if(target) target.classList.add('active'); if(btn) btn.classList.add('active');
+            if(target) target.classList.add('active'); 
+            if(btn) btn.classList.add('active');
             if(t === 'museum') updateMuseumUI();
             if(t === 'analyze') updateBotReport();
             if(t === 'zeta') updateZetaLeaderboard();
         };
 
         const updateBotReport = () => {
-            let log = document.getElementById('log'); log.innerHTML = "";
+            let log = document.getElementById('log'); 
+            log.innerHTML = "";
             team7.forEach(b => {
                 const ratio = (b.struct / (b.chaos || 1)).toFixed(2);
-                log.innerHTML += `<div style="margin-bottom:10px; color:${b.color}">[${b.name}] RATIO: ${ratio} | S: ${b.struct} | C: ${b.chaos}</div>`;
+                log.innerHTML += `<div style="margin-bottom:10px; color:\( {b.color}">[ \){b.name}] RATIO: ${ratio} | S: ${b.struct} | C: ${b.chaos}</div>`;
             });
         };
 
         const updateMuseumUI = () => {
-            const container = document.getElementById('leaderboard-data'); if(!container) return;
-            const groups = { HYPER_SINGULARITY: [], RE_EMERGENT: [], PERIODIC_STREAK: [], DIAMOND_RESONANCE: [], CHAOTIC_MESH: [] };
-            [...globalMuseum].forEach(m => groups[m.category || "CHAOTIC_MESH"]?.push(m));
-            container.innerHTML = Object.entries(groups).map(([cat, list]) => list.length > 0 ? `
-                <div class="category-header">${cat} (${list.length})</div>
-                ${list.slice(0, 5).map(m => `
-                    <div class="artifact-card ${selectedArtifact?.timestamp === m.timestamp ? 'selected' : ''} ${cat === 'RE_EMERGENT' ? 're-emergent-flash' : ''}" 
-                         onclick="window.selectArtifact('${m.timestamp}')">
-                        <div><b style="color:var(--neon-b)">Vy:${m.vy?.toFixed(6)}</b><br><small>Δ:${m.precision?.toFixed(5)}</small></div>
-                        <div style="color:var(--gold)">${m.botName}</div>
-                    </div>
-                `).join('')}
-            ` : '').join('');
+            const container = document.getElementById('leaderboard-data'); 
+            if(!container) return;
+            const groups = { 
+                HYPER_SINGULARITY: [], RE_EMERGENT: [], PERIODIC_STREAK: [], 
+                DIAMOND_RESONANCE: [], CHAOTIC_MESH: [] 
+            };
+            [...globalMuseum].forEach(m => {
+                const cat = m.category || "CHAOTIC_MESH";
+                if (groups[cat]) groups[cat].push(m);
+            });
+            container.innerHTML = Object.entries(groups).map(([cat, list]) => 
+                list.length > 0 ? `
+                    <div class="category-header">\( {cat} ( \){list.length})</div>
+                    ${list.slice(0, 5).map(m => `
+                        <div class="artifact-card ${selectedArtifact?.timestamp === m.timestamp ? 'selected' : ''}" 
+                             onclick="window.selectArtifact('${m.timestamp}')">
+                            <div><b style="color:var(--neon-b)">Vy:\( {m.vy?.toFixed(6)}</b><br><small>Δ: \){m.precision?.toFixed(5)}</small></div>
+                            <div style="color:var(--gold)">${m.botName}</div>
+                        </div>
+                    `).join('')}
+                ` : ''
+            ).join('');
         };
-        window.selectArtifact = (ts) => { selectedArtifact = globalMuseum.find(m => m.timestamp.toString() === ts); updateMuseumUI(); };
+        window.selectArtifact = (ts) => { 
+            selectedArtifact = globalMuseum.find(m => m.timestamp.toString() === ts); 
+            updateMuseumUI(); 
+        };
 
         const updateZetaLeaderboard = () => {
-            const lb = document.getElementById('zeta-leaderboard'); if(!lb) return;
+            const lb = document.getElementById('zeta-leaderboard'); 
+            if(!lb) return;
             lb.innerHTML = `<div style="color:var(--gold); margin-bottom:5px; border-bottom:1px solid #444;">IRRATIONAL CONTINUUM (Zeros Found: ${globalZeta.length})</div>`;
             globalZeta.slice(0, 20).forEach((z, i) => {
                 lb.innerHTML += `<div>[Rank ${i+1}] t = ${z.t.toFixed(8)} <span style="color:#555;">(Verified)</span></div>`;
@@ -308,21 +382,29 @@
         };
 
         window.downloadData = () => {
-            const data = { museum: globalMuseum, zeta: globalZeta, bots: team7.map(b=>({name:b.name, ratio: b.struct/(b.chaos||1)})) };
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-            a.download = `inversion_v44_final_state.json`; a.click();
+            const data = { 
+                museum: globalMuseum, 
+                zeta: globalZeta, 
+                bots: team7.map(b=>({name:b.name, ratio: b.struct/(b.chaos||1)})) 
+            };
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+            a.download = `inversion_v44_final_state.json`; 
+            a.click();
         };
 
         // --- MAIN RENDER V44 ---
         function runV44() {
             const ctxPhys = document.getElementById('c-phys')?.getContext('2d');
             if(ctxPhys) {
-                ctxPhys.fillStyle = 'rgba(0,0,0,0.2)'; ctxPhys.fillRect(0,0,canvasSize,canvasSize);
+                ctxPhys.fillStyle = 'rgba(0,0,0,0.2)'; 
+                ctxPhys.fillRect(0,0,canvasSize,canvasSize);
                 const cellS = canvasSize / gridRes;
                 for(let i=0; i<gridRes; i++) for(let j=0; j<gridRes; j++) {
                     if(heatmap[i][j] > 0) {
                         ctxPhys.fillStyle = `rgba(0, 255, 255, ${heatmap[i][j] * 0.15})`;
-                        ctxPhys.fillRect(i*cellS, j*cellS, cellS, cellS); heatmap[i][j] *= 0.98;
+                        ctxPhys.fillRect(i*cellS, j*cellS, cellS, cellS); 
+                        heatmap[i][j] *= 0.98;
                     }
                 }
             }
@@ -346,9 +428,16 @@
                 }
                 if(ctxPhys && document.getElementById('v-sim').classList.contains('active')) {
                     ctxPhys.beginPath(); ctxPhys.strokeStyle = bot.color; ctxPhys.lineWidth = 1.8;
-                    bot.trail.forEach((p, idx) => { ctxPhys.globalAlpha = (idx / bot.trail.length) * 0.9; ctxPhys.lineTo(p.x * (canvasSize/500), p.y * (canvasSize/500)); });
-                    ctxPhys.stroke(); ctxPhys.globalAlpha = 1.0; ctxPhys.fillStyle = bot.color;
-                    ctxPhys.beginPath(); ctxPhys.arc(bot.x*(canvasSize/500), bot.y*(canvasSize/500), 4, 0, Math.PI*2); ctxPhys.fill();
+                    bot.trail.forEach((p, idx) => { 
+                        ctxPhys.globalAlpha = (idx / bot.trail.length) * 0.9; 
+                        ctxPhys.lineTo(p.x * (canvasSize/500), p.y * (canvasSize/500)); 
+                    });
+                    ctxPhys.stroke(); 
+                    ctxPhys.globalAlpha = 1.0; 
+                    ctxPhys.fillStyle = bot.color;
+                    ctxPhys.beginPath(); 
+                    ctxPhys.arc(bot.x*(canvasSize/500), bot.y*(canvasSize/500), 4, 0, Math.PI*2); 
+                    ctxPhys.fill();
                 }
             });
 
@@ -367,20 +456,17 @@
             const h = canvasSize / 2; ctx.fillStyle = '#000'; ctx.fillRect(0,0,canvasSize,canvasSize);
             ctx.strokeStyle = 'rgba(0, 255, 255, 0.4)'; ctx.beginPath(); ctx.moveTo(h,0); ctx.lineTo(h,canvasSize); ctx.moveTo(0,h); ctx.lineTo(canvasSize,h); ctx.stroke();
             team7.forEach(b => {
-                // Q1: KINETIC + FADING TRAILS
                 ctx.save(); ctx.beginPath(); ctx.strokeStyle = b.color;
                 b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.3; ctx.lineTo((p.x/500)*h, (p.y/500)*h); }); ctx.stroke();
                 ctx.globalAlpha = 1.0; ctx.fillStyle = b.color; ctx.fillRect(b.x*(h/500)-1, b.y*(h/500)-1, 3, 3); ctx.restore();
 
-                // Q2: YELLOW BEAMS + LIVE SLICE
                 ctx.save(); ctx.translate(h, 0); ctx.strokeStyle = COLORS.GOLD; ctx.globalAlpha = 0.5;
                 ctx.beginPath(); ctx.moveTo(h/2, h); ctx.lineTo((b.x/500)*h, (b.y/500)*(h/2)); ctx.stroke();
                 ctx.strokeStyle = '#fff'; ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.moveTo(0, (b.bounces/800)*(h/2)); ctx.lineTo(h, (b.bounces/800)*(h/2)); ctx.stroke();
-                ctx.beginPath(); ctx.strokeStyle = b.color;
+                ctx.strokeStyle = b.color;
                 b.trail.forEach((p, i) => { ctx.globalAlpha = (i/b.trail.length)*0.4; ctx.lineTo((p.x/500)*h, (p.y/500)*(h/2)); }); ctx.stroke();
                 ctx.restore();
 
-                // Q3: POINCARÉ + FADING TRAILS
                 ctx.save(); ctx.translate(0, h);
                 ctx.beginPath(); ctx.strokeStyle = b.color;
                 b.trail.forEach((p, i) => {
@@ -391,7 +477,6 @@
                 let nx=(b.x-250)/250, ny=(b.y-250)/250, mag=Math.min(0.98, Math.sqrt(nx*nx+ny*ny)), fac=Math.atanh(mag)/mag;
                 ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(nx*fac*25+h/2, ny*fac*25+h/2, 2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
 
-                // Q4: DIAGONAL RULIAD BLOCKS
                 ctx.save(); ctx.translate(h, h); 
                 const rule = Math.floor(b.vy * 100) % 256;
                 const bSize = h / 12;
@@ -405,7 +490,6 @@
             });
         }
 
-        // --- ZETA TASKFORCE WITH VOID DETECTION ---
         function runZetaLogic() {
             const ctx = document.getElementById('c-zeta')?.getContext('2d'); if(!ctx) return;
             ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0,0,canvasSize, 150);
@@ -413,12 +497,10 @@
                 const m1 = Math.abs(Math.sin(z.t) + Math.sin(z.t * Math.E) + Math.cos(z.t * Math.PI) * 0.4);
                 const m2 = Math.abs(Math.sin(z.t + 0.0001) + Math.sin((z.t + 0.0001) * Math.E));
                 const grad = (m2 - m1) / 0.0001;
-                
-                // Repulsion from existing zeros
+
                 const isNear = globalZeta.some(gz => Math.abs(gz.t - z.t) < 0.05);
                 if (isNear) { z.t += 0.5; return; }
 
-                // Void Detection
                 z.isVoid = Math.abs(grad) < 0.0001 && m1 > 1.0;
                 if(z.isVoid) { z.t += Math.random() * 10; return; }
 
@@ -427,7 +509,7 @@
                     z.confirmations++; 
                     if(z.confirmations > 100) { logZeta(z.t); z.t = Math.random() * 500; z.locked = false; z.confirmations = 0; } 
                 } else { z.locked = false; }
-                
+
                 ctx.fillStyle = z.color; const x = (z.id * (canvasSize/7)) + (canvasSize/14), y = 140 - (m1 * 100);
                 ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#fff'; ctx.font = '6px monospace';
@@ -487,8 +569,13 @@
             });
         }
 
-        window.onload = () => { resizeUI(); ruliadGrid[0][ruliadRes/2]=1; runV44(); };
-        window.tab = tab; window.selectArtifact = selectArtifact;
+        window.onload = () => { 
+            resizeUI(); 
+            ruliadGrid[0][ruliadRes/2]=1; 
+            runV44(); 
+        };
+        window.tab = tab; 
+        window.selectArtifact = selectArtifact;
     </script>
 </body>
 </html>
