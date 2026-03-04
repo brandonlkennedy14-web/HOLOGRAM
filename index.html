@@ -86,9 +86,119 @@
             color: #000; padding: 5px 10px; font-size: 10px; font-weight: bold; 
             text-decoration: none; border-radius: 3px; z-index: 10000; opacity: 0.9; 
         }
+
+        /* ── SPLASH ── */
+        #splash {
+            position: fixed; inset: 0; z-index: 99999;
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        #splash-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+        }
+        .splash-card {
+            position: relative; z-index: 10;
+            background: rgba(0,0,0,0.88);
+            border: 1px solid rgba(0,255,255,0.2);
+            box-shadow: 0 0 60px rgba(0,255,255,0.06), 0 0 0 1px rgba(0,255,255,0.04);
+            padding: 44px 36px 36px;
+            max-width: 480px; width: 92%;
+            text-align: center;
+        }
+        .splash-eyebrow {
+            font-size: 9px; letter-spacing: 0.3em; color: #333;
+            text-transform: uppercase; margin-bottom: 12px;
+        }
+        .splash-title {
+            font-size: 28px; font-weight: 800; letter-spacing: 0.06em;
+            color: #0ff;
+            text-shadow: 0 0 30px rgba(0,255,255,0.5), 0 0 60px rgba(0,255,255,0.2);
+            margin-bottom: 4px;
+        }
+        .splash-sub {
+            font-size: 10px; color: #222; margin-bottom: 36px;
+            letter-spacing: 0.12em; text-transform: uppercase;
+        }
+        .splash-btn {
+            display: block; width: 100%; text-align: left;
+            background: none; border: 1px solid; border-radius: 2px;
+            padding: 16px 20px; margin-bottom: 10px;
+            cursor: pointer; color: #fff;
+            transition: all 0.15s cubic-bezier(0.34,1.56,0.64,1);
+            font-family: monospace;
+        }
+        .splash-btn:hover { transform: scale(1.016); }
+        .splash-btn:last-of-type { margin-bottom: 0; }
+        .btn-eyes   { border-color: rgba(0,255,0,0.3);   background: rgba(0,255,0,0.04); }
+        .btn-eyes:hover   { border-color: rgba(0,255,0,0.7);   background: rgba(0,255,0,0.08);   box-shadow: 0 0 20px rgba(0,255,0,0.1); }
+        .btn-museum { border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.04); }
+        .btn-museum:hover { border-color: rgba(255,215,0,0.7); background: rgba(255,215,0,0.08); box-shadow: 0 0 20px rgba(255,215,0,0.1); }
+        .btn-zeta   { border-color: rgba(255,0,255,0.3); background: rgba(255,0,255,0.04); }
+        .btn-zeta:hover   { border-color: rgba(255,0,255,0.7); background: rgba(255,0,255,0.08); box-shadow: 0 0 20px rgba(255,0,255,0.1); }
+        .s-tag {
+            font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase;
+            padding: 2px 6px; border-radius: 2px; margin-bottom: 6px; display: inline-block;
+        }
+        .tag-g  { background: rgba(0,255,0,0.1);   color: #0f0; }
+        .tag-au { background: rgba(255,215,0,0.1); color: #ffd700; }
+        .tag-p  { background: rgba(255,0,255,0.1); color: #f0f; }
+        .s-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; letter-spacing: 0.04em; }
+        .s-desc  { font-size: 10px; color: #444; line-height: 1.5; }
+        .s-meta  { margin-top: 7px; font-size: 9px; opacity: 0.5; letter-spacing: 0.06em; }
+        .splash-footer {
+            margin-top: 20px; font-size: 8px; color: #1a1a1a; letter-spacing: 0.12em;
+        }
+        @keyframes splashFade { to { opacity: 0; pointer-events: none; } }
+        .splash-fade { animation: splashFade 0.45s ease forwards; }
+
+        /* back button inside sim */
+        #back-btn {
+            position: fixed; bottom: 68px; right: 8px; z-index: 2000;
+            background: rgba(0,0,0,0.8); border: 1px solid #222; color: #333;
+            font-family: monospace; font-size: 9px; padding: 3px 8px; cursor: pointer;
+            letter-spacing: 0.08em;
+        }
+        #back-btn:hover { color: #0ff; border-color: #0ff; }
     </style>
 </head>
 <body>
+    <!-- ══ SPLASH ══ -->
+    <div id="splash">
+        <canvas id="splash-canvas"></canvas>
+        <div class="splash-card">
+            <div class="splash-eyebrow">hologram · inversion-ultimate-v44</div>
+            <div class="splash-title">HOLOGRAM</div>
+            <div class="splash-sub">Team 7 · Billiard Topology · Zeta Continuum</div>
+
+            <button class="splash-btn btn-eyes" onclick="splashLaunch('sim')">
+                <span class="s-tag tag-g">Primary</span>
+                <div class="s-title">EYES — Full Simulation</div>
+                <div class="s-desc">Team 7 agents scanning Vy space. Smiths find closed orbits, Blades hunt chaos voids. Ruliad brain, reality quadrants, hyper spacetime.</div>
+                <div class="s-meta" style="color:#0f0;">EYES · BRAIN · REALITY · HYPER · ZETA · LOG</div>
+            </button>
+
+            <button class="splash-btn btn-museum" onclick="splashLaunch('museum')">
+                <span class="s-tag tag-au">Archive</span>
+                <div class="s-title">MUSEUM — Vault Archeology</div>
+                <div class="s-desc">All discovered artifacts: Hyper Singularities, Re-Emergent structures, Periodic Streaks, Diamond Resonances. 2D trajectory & 3D phase reconstruction.</div>
+                <div class="s-meta" style="color:#ffd700;">Supabase backed · Realtime sync · Structural reconstruction</div>
+            </button>
+
+            <button class="splash-btn btn-zeta" onclick="splashLaunch('zeta')">
+                <span class="s-tag tag-p">Research</span>
+                <div class="s-title">ZETA — Irrational Continuum</div>
+                <div class="s-desc">7 zeta agents converging on Riemann zeros via gradient descent. Void detection active. All verified zeros logged permanently to Supabase.</div>
+                <div class="s-meta" style="color:#f0f;">Gradient descent · Zero verification · Synced continuum</div>
+            </button>
+
+            <div class="splash-footer">
+                Smith &amp; Blade bots · Shared Supabase museum · Knowledge is never lost
+            </div>
+        </div>
+    </div>
+
+    <button id="back-btn" onclick="splashReturn()" style="display:none;">⇦ SPLASH</button>
+
     <div class="grid-overlay"></div>
     <a href="http://buymeacoffee.com/brandonkennedy" target="_blank" class="bmc-btn">☕ TIP JAR</a>
 
@@ -577,5 +687,98 @@
         window.tab = tab; 
         window.selectArtifact = selectArtifact;
     </script>
+    <!-- ══ SPLASH LOGIC ══ -->
+    <script>
+    (function(){
+        const canvas = document.getElementById('splash-canvas');
+        const ctx = canvas.getContext('2d');
+        let W, H, pts = [];
+
+        function resize() {
+            W = canvas.width  = window.innerWidth;
+            H = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Billiard-style particles in a glowing square
+        for(let i = 0; i < 14; i++) {
+            const isGold = Math.random() < 0.25;
+            pts.push({
+                x: W/2 + (Math.random()-0.5)*300,
+                y: H/2 + (Math.random()-0.5)*300,
+                vx: (Math.random()-0.5) * 2.2,
+                vy: (Math.random()-0.5) * 2.2,
+                trail: [],
+                color: isGold ? '#ffd700' : (Math.random()<0.5 ? '#0ff' : '#0f0'),
+                alpha: 0.1 + Math.random()*0.18
+            });
+        }
+
+        function bounds() {
+            const s = Math.min(W, H) * 0.48;
+            return { x0: W/2-s/2, y0: H/2-s/2, x1: W/2+s/2, y1: H/2+s/2 };
+        }
+
+        function tick() {
+            ctx.fillStyle = 'rgba(0,0,0,0.15)';
+            ctx.fillRect(0, 0, W, H);
+            const b = bounds();
+
+            // Faint grid
+            ctx.strokeStyle = 'rgba(0,255,255,0.04)';
+            ctx.lineWidth = 1;
+            for(let x = b.x0; x <= b.x1; x += 25) { ctx.beginPath(); ctx.moveTo(x,b.y0); ctx.lineTo(x,b.y1); ctx.stroke(); }
+            for(let y = b.y0; y <= b.y1; y += 25) { ctx.beginPath(); ctx.moveTo(b.x0,y); ctx.lineTo(b.x1,y); ctx.stroke(); }
+
+            // Bounding box
+            ctx.strokeStyle = 'rgba(0,255,255,0.08)';
+            ctx.strokeRect(b.x0, b.y0, b.x1-b.x0, b.y1-b.y0);
+
+            pts.forEach(p => {
+                p.trail.push({x:p.x, y:p.y});
+                if(p.trail.length > 35) p.trail.shift();
+
+                p.x += p.vx; p.y += p.vy;
+                if(p.x <= b.x0) { p.vx = Math.abs(p.vx); p.x = b.x0; }
+                if(p.x >= b.x1) { p.vx = -Math.abs(p.vx); p.x = b.x1; }
+                if(p.y <= b.y0) { p.vy = Math.abs(p.vy); p.y = b.y0; }
+                if(p.y >= b.y1) { p.vy = -Math.abs(p.vy); p.y = b.y1; }
+
+                if(p.trail.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.trail[0].x, p.trail[0].y);
+                    for(let i=1; i<p.trail.length; i++) ctx.lineTo(p.trail[i].x, p.trail[i].y);
+                    ctx.strokeStyle = p.color;
+                    ctx.globalAlpha = p.alpha * 0.35;
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, 1.5, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            requestAnimationFrame(tick);
+        }
+        tick();
+
+        window.splashLaunch = function(startTab) {
+            const splash = document.getElementById('splash');
+            splash.classList.add('splash-fade');
+            setTimeout(() => { splash.style.display = 'none'; }, 450);
+            document.getElementById('back-btn').style.display = 'block';
+            // Switch tab after engine has started
+            setTimeout(() => { if(window.tab && startTab !== 'sim') window.tab(startTab); }, 100);
+        };
+
+        window.splashReturn = function() {
+            document.getElementById('back-btn').style.display = 'none';
+            const splash = document.getElementById('splash');
+            splash.style.opacity = '1';
+            splash.classList.remove('splash-fade');
+            splash.style.display = 'flex';
+        };
+    })();
+    </script>
 </body>
-</html>
